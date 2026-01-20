@@ -21,4 +21,4 @@ Objective: To learn how to evaluate policies and complement my mostly qualitativ
 
 ## Contact
 - Email: [emcrouse@upenn.edu]
-- GitHub: [lizmcrouse]
+- GitHub: [lizmcrouse.github.io]
