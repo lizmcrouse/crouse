@@ -17,7 +17,7 @@ Advanced spatial analysis and data science for urban planning and public policy.
 ## About Me
 Name: Liz Crouse
 Background: MCP '26
-Objective: To learn how to evaluate policies and complement my mostly qualitative approach to my planning education just far.
+Objective: To learn how to evaluate policies and complement my mostly qualitative approach to my planning education so far.
 
 ## Contact
 - Email: emcrouse@upenn.edu
