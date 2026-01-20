@@ -15,8 +15,10 @@ Advanced spatial analysis and data science for urban planning and public policy.
 - **Final Project:** Capstone modeling challenge
 
 ## About Me
-[Students will customize this section]
+Name: Liz Crouse
+Background: MCP '26
+Objective: To learn how to evaluate policies and complement my mostly qualitative approach to my planning education just far.
 
 ## Contact
-- Email: [your.email@upenn.edu]
-- GitHub: [@your-username]
+- Email: emcrouse@upenn.edu
+- GitHub: lizmcrouse
