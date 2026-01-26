@@ -8,7 +8,7 @@ navbar:
       text: Home
     - text: Labs
       menu:
-        - href: labs/lab_0/
+        - href: labs/lab_0/lab0_crouse.html
           text: "Lab 0: dplyr Basics"
 
 format:
