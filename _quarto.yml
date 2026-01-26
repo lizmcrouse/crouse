@@ -2,16 +2,15 @@ project:
   type: website
   output-dir: docs
 
-website:
-  title: "Liz Crouse - MUSA 5080 Portfolio"
-  navbar:
-    left:
+navbar:
+  left:
     - href: index.qmd
       text: Home
     - text: Labs
       menu:
         - href: labs/lab_0/
           text: "Lab 0: dplyr Basics"
+
 format:
   html:
     theme: cosmo
@@ -20,3 +19,4 @@ format:
 
 execute:
   freeze: auto
+  
