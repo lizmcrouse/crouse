@@ -2,14 +2,15 @@ project:
   type: website
   output-dir: docs
 
-navbar:
-  left:
-    - href: index.qmd
-      text: Home
-    - text: Labs
-      menu:
-        - href: labs/lab_0/
-          text: "Lab 0: dplyr Basics"
+website:
+  navbar:
+    left:
+      - href: index.qmd
+        text: Home
+      - text: Labs
+        menu:
+          - href: labs/lab_0/index.qmd
+            text: "Lab 0: dplyr Basics"
 
 format:
   html:
@@ -19,4 +20,3 @@ format:
 
 execute:
   freeze: auto
-  
