@@ -13,7 +13,6 @@ website:
             text: "Lab 0: dplyr Basics"
           - href: labs/lab_1/lab1_crouse.qmd
             text: "Lab 1: Census Data Exploration"
-
 format:
   html:
     theme: cosmo
