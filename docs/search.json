@@ -1,5 +1,40 @@
 [
   {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "MUSA 5080 Portfolio",
+    "section": "",
+    "text": "This portfolio documents my learning journey in Public Policy Analytics (MUSA 5080).\n\n\nAdvanced spatial analysis and data science for urban planning and public policy.\n\n\n\n\nWeekly Notes: My learning reflections and key concepts\nLabs: Completed assignments and analyses\nFinal Project: Capstone modeling challenge\n\n\n\n\n\nName: Liz Crouse\nBackground: MCP ’26\nObjective: To learn how to evaluate policies and complement my mostly qualitative approach to my planning education so far.\n\n\n\n\n\nEmail: emcrouse@upenn.edu\nGitHub: @lizmcrouse"
+  },
+  {
+    "objectID": "index.html#about-this-course",
+    "href": "index.html#about-this-course",
+    "title": "MUSA 5080 Portfolio",
+    "section": "",
+    "text": "Advanced spatial analysis and data science for urban planning and public policy."
+  },
+  {
+    "objectID": "index.html#portfolio-structure",
+    "href": "index.html#portfolio-structure",
+    "title": "MUSA 5080 Portfolio",
+    "section": "",
+    "text": "Weekly Notes: My learning reflections and key concepts\nLabs: Completed assignments and analyses\nFinal Project: Capstone modeling challenge"
+  },
+  {
+    "objectID": "index.html#about-me",
+    "href": "index.html#about-me",
+    "title": "MUSA 5080 Portfolio",
+    "section": "",
+    "text": "Name: Liz Crouse\nBackground: MCP ’26\nObjective: To learn how to evaluate policies and complement my mostly qualitative approach to my planning education so far."
+  },
+  {
+    "objectID": "index.html#contact",
+    "href": "index.html#contact",
+    "title": "MUSA 5080 Portfolio",
+    "section": "",
+    "text": "Email: emcrouse@upenn.edu\nGitHub: @lizmcrouse"
+  },
+  {
     "objectID": "labs/lab_0/lab0_crouse.html",
     "href": "labs/lab_0/lab0_crouse.html",
     "title": "Lab 0: Getting Started with dplyr",
@@ -75,41 +110,6 @@
     "title": "Lab 0: Getting Started with dplyr",
     "section": "5.2 Categorical Summaries",
     "text": "5.2 Categorical Summaries\n\n# Frequency table for price categories\npricecategory_freq &lt;- car_data %&gt;%\n  count(price_category, sort = TRUE, name = \"cars_per_pricecategory\")"
-  },
-  {
-    "objectID": "index.html",
-    "href": "index.html",
-    "title": "MUSA 5080 Portfolio",
-    "section": "",
-    "text": "This portfolio documents my learning journey in Public Policy Analytics (MUSA 5080).\n\n\nAdvanced spatial analysis and data science for urban planning and public policy.\n\n\n\n\nWeekly Notes: My learning reflections and key concepts\nLabs: Completed assignments and analyses\nFinal Project: Capstone modeling challenge\n\n\n\n\n\nName: Liz Crouse\nBackground: MCP ’26\nObjective: To learn how to evaluate policies and complement my mostly qualitative approach to my planning education so far.\n\n\n\n\n\nEmail: emcrouse@upenn.edu\nGitHub: @lizmcrouse"
-  },
-  {
-    "objectID": "index.html#about-this-course",
-    "href": "index.html#about-this-course",
-    "title": "MUSA 5080 Portfolio",
-    "section": "",
-    "text": "Advanced spatial analysis and data science for urban planning and public policy."
-  },
-  {
-    "objectID": "index.html#portfolio-structure",
-    "href": "index.html#portfolio-structure",
-    "title": "MUSA 5080 Portfolio",
-    "section": "",
-    "text": "Weekly Notes: My learning reflections and key concepts\nLabs: Completed assignments and analyses\nFinal Project: Capstone modeling challenge"
-  },
-  {
-    "objectID": "index.html#about-me",
-    "href": "index.html#about-me",
-    "title": "MUSA 5080 Portfolio",
-    "section": "",
-    "text": "Name: Liz Crouse\nBackground: MCP ’26\nObjective: To learn how to evaluate policies and complement my mostly qualitative approach to my planning education so far."
-  },
-  {
-    "objectID": "index.html#contact",
-    "href": "index.html#contact",
-    "title": "MUSA 5080 Portfolio",
-    "section": "",
-    "text": "Email: emcrouse@upenn.edu\nGitHub: @lizmcrouse"
   },
   {
     "objectID": "labs/lab_1/lab1_crouse.html",
