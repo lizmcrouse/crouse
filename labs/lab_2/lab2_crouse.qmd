@@ -60,6 +60,7 @@ library(sf)
 library(viridis)
 library(RColorBrewer)
 library(knitr)
+library(scales)
 
 
 # Load spatial data
@@ -268,15 +269,9 @@ underserved_counties <- county_statistics_summary %>%
   filter(underserved_pct == 100)
 
 
-ggplot(county_statistics_summary) + 
-  geom_sf(aes(fill = underserved_pct), color = NA) +
-  geom_sf(data = pa_counties, fill = NA, color = "black", size = 0.4) +
-  scale_fill_viridis_b(
-    option = "mako",
-    direction = -1,
-    name = 
-      "% Underserved") +
-  theme_minimal()
+countygeo_stat_summary <- pa_counties %>%
+  st_join(county_stat_summary)
+
 
 ```
 
@@ -290,7 +285,7 @@ ggplot(county_statistics_summary) +
 **Questions to answer:**
 - Which 5 counties have the highest percentage of underserved vulnerable tracts? **By my parameters for under-service, there are 17 counties in PA that are entirely underserved. The five with the least service (furthest average distance to nearest hospital) are Dauphin, Perry, Sullivan, Bradford, and Pike Counties.**
 - Which counties have the most vulnerable people living far from hospitals? **Counties that are 100% underserved with populations greater than 10,000 are Wayne, McKean, Pike, Tioga, and Clarion Counties.**
-- Are there any patterns in where underserved counties are located? **The largest concentration of the most severely underserved tracts is in north central PA, a rural area distant from PA's two major population centers.**
+- Are there any patterns in where underserved counties are located? **The largest concentration of the most severely underserved tracts is in north central PA, a rural area distant from PA's two major population centers of Pittsburgh and Philadelphia.**
 
 ---
 
@@ -309,7 +304,14 @@ underserved_counties_nogeom <- underserved_counties %>%
   slice(1:10)
   
 underserved_table <- underserved_counties_nogeom %>%
+   mutate(
+    n_vuln_tracts = comma(n_vuln_tracts),
+    n_unders_tracts = comma(n_unders_tracts),
+    total_pop_vuln = comma(total_pop_vuln),
+    underserved_pct = percent(underserved_pct / 100, accuracy = 0.1),
+    avg_dist_nearest_hosp = round(avg_dist_nearest_hosp, 1)) %>%
   kable(col.names = c("County","# Vulnerable Tracts","# Underserved Tracts","% Tracts Underserved","Average Distance from Tract to Nearest Hospital", "Total Vulnerable Population"), caption = "Counties with high populations of elderly and low income individuals with inequitable access to hospitals")
+view(underserved_table)
 
 ```
 
@@ -334,21 +336,16 @@ Create a choropleth map showing healthcare access challenges at the county level
 ```{r}
 # Create county-level access map
 
-
-ggplot(county_statistics_summary) + 
-  geom_sf(aes(fill = n_unders_tracts), color = NA) +
-  geom_sf(
-    data = pa_counties,
-    fill = NA,
-    color = "black",
-    size = 0.4
-  ) +
-  scale_fill_viridis_c(
+ggplot(countygeo_stat_summary) + 
+  geom_sf(aes(fill = underserved_pct), color = "black") +
+  scale_fill_viridis_b(
     option = "mako",
     direction = -1,
-    name = "Number of Underserved Tracts"
-  ) +
-  theme_minimal()
+    name = 
+      "% Underserved") +
+  theme_void() + 
+  labs(title = "Percentage of Underserved Tracts by County")
+
 
 
 
@@ -372,7 +369,37 @@ Create a map highlighting underserved vulnerable tracts.
 **Your Task:**
 ```{r}
 # Create detailed tract-level map
+pa_tracts <- pa_tracts %>%
+  st_transform(2272)
 
+tracts_service_level <- pa_tracts %>%
+  st_join(vulnerable_tracts["service_level"], join = st_within)
+tracts_service_level <- tracts_service_level %>%
+  mutate(service_level = ifelse(is.na(service_level), "served", service_level))
+tracts_service_level %>% 
+  count(service_level)
+
+
+ggplot() + 
+  geom_sf(
+    data = tracts_service_level,
+    aes(fill = service_level),
+    color = NA) +
+  geom_sf(
+    data = pa_counties,
+    fill = NA,
+    color = "black",
+    size = 0.2
+  ) +
+  scale_fill_manual(
+    values = c(
+      "underserved" = "red",
+      "served" = NA),
+    na.value = NA) +
+  theme_void() +
+  labs(
+    title = "Vulnerable & Underserved Tracts in PA Counties", subtitle = "Tracts with low median incomes, high 65+ population, and >15 miles to nearest hospital",
+    fill = "Service Level")
 
 
 
@@ -394,7 +421,19 @@ Create a visualization showing the distribution of distances to hospitals for vu
 **Your Task:**
 ```{r}
 # Create distribution visualization
-
+ggplot(data = vulnerable_tracts, aes(x = nearest_hosp_miles)) + 
+  geom_histogram(binwidth = 5, color = "black") +
+    scale_x_continuous(
+    limits = c(0, NA),
+    expand = c(0, 0)
+  ) +
+  scale_y_continuous(
+    limits = c(0, NA),
+    expand = c(0, 0)) +
+     labs(title = "Distribution of distances to nearest hospital among vulnerable PA census tracts",
+     x = "Distance to nearest hospital (mi)",
+     y = "Number of tracts",
+     caption = "The nearest hospital for over 90 vulnerable tracts is more than 15 miles away.")
 
 
 
