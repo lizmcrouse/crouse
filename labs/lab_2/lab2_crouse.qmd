@@ -572,8 +572,21 @@ Choose ONE of the following challenge exercises, or propose your own research qu
 ```{r}
 # Load your additional dataset
 
+crime_phl <- st_read("C:/Users/lizmc/Desktop/Y2S2/ppa/crouse/labs/lab_2/data/incidents_part1_part2(1)")
+crime_phl <- crime_phl %>% st_transform(2272)
+                     
+rehab_phl <- st_read("C:/Users/lizmc/Desktop/Y2S2/ppa/crouse/labs/lab_2/data/DOH_DrugAlcoholTreatmentFacilities202212")
+rehab_phl <- rehab_phl %>% st_transform(2272)
 
+mhc_phl <- st_read("C:/Users/lizmc/Desktop/Y2S2/ppa/crouse/labs/lab_2/data/DOH_CommunityMentalHealthCenters202106.geojson")
+mhc_phl <- mhc_phl %>% st_transform(2272)
 
+phl <- counties(state = "PA") 
+phl <- phl %>%
+  filter(NAMELSAD == "Philadelphia County")
+phl <- phl %>% st_transform(2272)
+pa_tracts <- pa_tracts %>% st_transform(2272)
+phl_tracts <- phl_tracts %>% st_transform(2272)
 
 ```
 
@@ -594,6 +607,8 @@ Write a clear research statement that your analysis will answer.
 - "Are EMS stations appropriately located near vulnerable populations?"
 - "Do areas with low vehicle access have worse hospital access?"
 
+Do high-crime areas have equitable access to health services and alternative interventions?
+
 ---
 
 3. **Conduct spatial analysis**
@@ -612,7 +627,9 @@ Use at least TWO spatial operations to answer your research question.
 ```{r}
 # Your spatial analysis
 
+phl_tracts <- st_filter(pa_tracts, phl)
 
+crime_by_tract <- st_join(phl_tracts, crime_phl)
 
 
 
