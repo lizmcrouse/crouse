@@ -257,5 +257,103 @@
     "title": "Lab 1: Census Data Quality for Policy Decisions",
     "section": "Submission Checklist",
     "text": "Submission Checklist\nBefore submitting your portfolio link on Canvas:\n\nAll code chunks run without errors\nAll “[Fill this in]” prompts have been completed\nTables are properly formatted and readable\nExecutive summary addresses all four required components\nPortfolio navigation includes this assignment\nCensus API key is properly set\nDocument renders correctly to HTML\n\nRemember: Submit your portfolio URL on Canvas, not the file itself. Your assignment should be accessible at your-portfolio-url/labs/lab_1/your_file_name.html"
+  },
+  {
+    "objectID": "labs/lab_3/Midterm_2026.html",
+    "href": "labs/lab_3/Midterm_2026.html",
+    "title": "Midterm Challenge: Philadelphia Housing Price Prediction",
+    "section": "",
+    "text": "Due Date: Mar 16, 2026, 11:59PM\nIn-Class Presentations: March 17, 2026 (5 minutes per team)\nWeight: 15% of final grade\nTeam: You’ll work with your table-mates as a team. Feel free to delegate. Everyone should upload their final products onto their own portfolio websites. Be sure to acknowledge your team-mates.\nSubmission Format:\n\nPresentation Slides (.qmd → revealjs, ~10-15 slides) - Main deliverable (see my weekly lecture notes for inspiration on how to make slides!)\nTechnical Appendix (.qmd → HTML document) - Supporting details"
+  },
+  {
+    "objectID": "labs/lab_3/Midterm_2026.html#overview",
+    "href": "labs/lab_3/Midterm_2026.html#overview",
+    "title": "Midterm Challenge: Philadelphia Housing Price Prediction",
+    "section": "",
+    "text": "Due Date: Mar 16, 2026, 11:59PM\nIn-Class Presentations: March 17, 2026 (5 minutes per team)\nWeight: 15% of final grade\nTeam: You’ll work with your table-mates as a team. Feel free to delegate. Everyone should upload their final products onto their own portfolio websites. Be sure to acknowledge your team-mates.\nSubmission Format:\n\nPresentation Slides (.qmd → revealjs, ~10-15 slides) - Main deliverable (see my weekly lecture notes for inspiration on how to make slides!)\nTechnical Appendix (.qmd → HTML document) - Supporting details"
+  },
+  {
+    "objectID": "labs/lab_3/Midterm_2026.html#the-challenge",
+    "href": "labs/lab_3/Midterm_2026.html#the-challenge",
+    "title": "Midterm Challenge: Philadelphia Housing Price Prediction",
+    "section": "The Challenge",
+    "text": "The Challenge\nYou are consultancy (please name your consultancy) competing to win the bid to work for a project for the Philadelphia Office of Property Assessment. The city wants to improve its Automated Valuation Model (AVM) for property tax assessments. Your task is to build a predictive model for residential sale prices and present your findings to city officials in a 5-minute briefing.\nDeliverables:\n\nPresentation slides (10-15 slides MAX) - Your main findings for stakeholders\nTechnical appendix (HTML document) - All code, diagnostics, and detailed analysis\n5-minute in-class presentation - Deliver your slides on March 17\n\nYour goal: Predict 2023-2024 home sale prices accurately while communicating findings clearly to a policy audience."
+  },
+  {
+    "objectID": "labs/lab_3/Midterm_2026.html#two-part-submission",
+    "href": "labs/lab_3/Midterm_2026.html#two-part-submission",
+    "title": "Midterm Challenge: Philadelphia Housing Price Prediction",
+    "section": "Two-Part Submission",
+    "text": "Two-Part Submission\n\nPart A: Presentation Slides (Primary Deliverable)\nFormat: Quarto revealjs presentation\nExample YAML:\n---\ntitle: \"Philadelphia Housing Price Prediction\"\nsubtitle: \"Improving Property Tax Assessments\"\nauthor: \"Your Name\"\nformat: \n  revealjs:\n    theme: simple\n    slide-number: true\n    smaller: true\n---\nContent: ~10-15 (could be less!!) slides covering: 1. Research question & motivation (1-2 slides) 2. Data overview (1 slide) 3. Key visualizations (2-3 slides) 4. Model comparison results (1-2 slides) 5. Main findings (2-3 slides) 6. Policy recommendations (1-2 slides)\nAudience: City officials who don’t know R or care about the nitty gritty of stats. They just want the best estimates possible.\nNo code in these slides - just polished visualizations and key takeaways\n\n\n\nPart B: Technical Appendix (Supporting Documentation)\nFormat: Quarto HTML document\nExample YAML:\n---\ntitle: \"Philadelphia Housing Model - Technical Appendix\"\nauthor: \"Your Name\"\nformat: \n  html:\n    code-fold: show\n    toc: true\n    toc-location: left\n    theme: cosmo\n---\nContent: All the technical details: - Complete data cleaning code - All EDA visualizations - Feature engineering code - Full model outputs - Diagnostic plots - Detailed interpretations\nAudience: Data scientists and technical reviewers\nAll code visible - this is where you show your work"
+  },
+  {
+    "objectID": "labs/lab_3/Midterm_2026.html#data-sources",
+    "href": "labs/lab_3/Midterm_2026.html#data-sources",
+    "title": "Midterm Challenge: Philadelphia Housing Price Prediction",
+    "section": "Data Sources",
+    "text": "Data Sources\n\nPrimary Dataset: Philadelphia Property Sales\nSource: Philadelphia Property Sales\nThis dataset contains actual property sales with:\n\nSale price\nSale date\nProperty characteristics (bedrooms, bathrooms, sq ft, etc.)\nProperty location (address, coordinates)\n\nYou will need to:\n\nDownload the data\nClean it (missing values, outliers, data errors)\nFilter to 2023-2025 residential sales only\n\n\n\nSecondary Datasets (You Choose!)\nRequired: Browse the OpenPhily Data portal and use Census Data to incorporate spatial features into your model.\nYour task: Think like an urban planner. What location factors matter for housing prices in Philadelphia?"
+  },
+  {
+    "objectID": "labs/lab_3/Midterm_2026.html#assignment-structure",
+    "href": "labs/lab_3/Midterm_2026.html#assignment-structure",
+    "title": "Midterm Challenge: Philadelphia Housing Price Prediction",
+    "section": "Assignment Structure",
+    "text": "Assignment Structure\nYour work should follow this workflow, with results split between presentation and appendix:\n\nPhase 1: Data Preparation (Technical Appendix)\nLoad and clean Philadelphia sales data:\n\nFilter to residential properties, 2023-2024 sales\nRemove obvious errors\nHandle missing values\nDocument all cleaning decisions\n\nLoad secondary data:\n\nCensus data (tidycensus):\nSpatial amenities (OpenDataPhilly)\nJoin to sales data appropriately\nMake sure you have the correct CRS!\n\nDeliverable (Appendix only):\n\nComplete data cleaning code\nSummary tables showing before/after dimensions\nNarrative explaining decisions\n\n\n\n\nPhase 2: Exploratory Data Analysis\nCreate at least 5 professional visualizations:\n\nDistribution of sale prices (histogram)\nGeographic distribution (map)\nPrice vs. structural features (scatter plots)\nPrice vs. spatial features (scatter plots)\nOne creative visualization\n\nFor presentation slides: Select your best 2-3 visualizations that tell a compelling story\nFor appendix: Include all visualizations with detailed interpretations\nExample presentation slide:\n## Where Are Expensive Homes in Philadelphia?\n\n[Beautiful map showing price patterns]\n\n**Key Findings:**\n- Center City and University City command premium prices\n- River wards show emerging appreciation\n- Northeast Philadelphia remains most affordable\n\n\n\nPhase 3: Feature Engineering (Technical Appendix)\nCreate spatial features: (these are examples below, but how you construct your model is up to your team)\n\nBuffer-based features:\n\nParks within 500ft, 1000ft\nTransit stops within 400ft\nSchools, crime, etc.\n\nk-Nearest Neighbor features:\n\nAverage distance to k nearest parks, transit, etc.\n\nCensus variables:\n\nJoin median income, education, poverty, etc.\n\nInteraction terms:\n\nTheoretically motivated combinations\n\n\nDeliverable (Appendix only):\n\nAll feature engineering code\nSummary table of features created\nBrief justification for each feature\n\n\n\n\nPhase 4: Model Building\nBuild models progressively: (for example)\n\nStructural features only\n\nCensus variables\n\n\nSpatial features\n\n\nInteractions and fixed effects\n\n\nFor presentation slides: Show one comparison table (RMSE, R² for 4 different models you constructed in your process)\nFor appendix:\n\nComplete model code\nFull modelsummary output\nCoefficient interpretations\n\nExample presentation slide:\n## Model Performance Improves with Each Layer\n\n| Model | CV RMSE (log) | R² |\n|-------|---------------|-----|\n| Structural Only | 0.42 | 0.61 |\n| + Census | 0.38 | 0.69 |\n| + Spatial | 0.31 | 0.78 |\n| + Interactions/FE | 0.26 | 0.84 |\n\n**Bottom line:** Neighborhood effects matter most!\n\n\n\nPhase 5: Model Validation\nUse 10-fold cross-validation: - Compare all 4 models - Report RMSE, MAE, R² for each - Create predicted vs. actual plot\nFor presentation slides: Final CV results table (shown above) + one compelling visual\nFor appendix:\n\nComplete CV code\nDetailed results\nPredicted vs. actual scatter plot\nDiscussion of which features matter most\n\n\n\n\nPhase 6: Model Diagnostics (Technical Appendix Only)\nCheck assumptions for best model:\n\nResidual plot (linearity, homoscedasticity)\nQ-Q plot (normality)\nCook’s distance (influential observations)\n\nDeliverable (Appendix only):\n\nAll 3 diagnostic plots\nInterpretation of each\nHow you addressed violations (if any)\n\nNote: Don’t include diagnostic plots in presentation - too technical!\n\n\n\nPhase 7: Conclusions & Recommendations\nAnswer these questions:\n\nWhat is your final model’s accuracy?\nWhich features matter most for Philadelphia prices?\nWhich neighborhoods are hardest to predict?\nEquity concerns?\nLimitations?\n\nFor presentation slides: 1-2 slides with clear, concise answers (bullet points)\nFor appendix: 2-3 paragraphs with detailed discussion\nExample presentation slide:\n## Key Findings & Recommendations\n\n**Model Accuracy:** RMSE = 0.26 (log scale) ≈ 26% typical error\n\n**Top Predictors:**\n- Neighborhood fixed effects (largest impact)\n- Square footage (β = 0.0003, p &lt; 0.001)\n- Distance to transit (β = -0.05, p &lt; 0.001)\n\n**Recommendations:**\n✓ Current AVM undervalues transit-accessible properties  \n✓ Model struggles in rapidly gentrifying neighborhoods"
+  },
+  {
+    "objectID": "labs/lab_3/Midterm_2026.html#submission-requirements",
+    "href": "labs/lab_3/Midterm_2026.html#submission-requirements",
+    "title": "Midterm Challenge: Philadelphia Housing Price Prediction",
+    "section": "Submission Requirements",
+    "text": "Submission Requirements\n\nWhat to Submit (by 11:59 PM, March 16, 2026)\nUpload to Canvas - A link to your portfolio that Contains\n\nPresentation Slides\n\nLastName_FirstName_Presentation.html (rendered slides)\nLastName_FirstName_Presentation.qmd (source file)\nMust use format: revealjs\n10-15 slides maximum\nNo code visible in slides\n\nTechnical Appendix\n\nLastName_FirstName_Appendix.html (rendered document)\nLastName_FirstName_Appendix.qmd (source file)\nMust use format: html\nAll code visible and commented\nComplete analysis documented\n\nData files OR clear download instructions in appendix\n\nFor Teams: Use LastName1_LastName2_Presentation.html\n\n\nIn-Class Presentation (March 17, 2026)\nFormat: 5 minutes per team\nWhat to present:\n\nWalk through your presentation slides. Choose your team’s spoke’s person or take turns You’ll all stand up there and try to look calm, confident, & collected.\nHit the highlights - research question, key viz, model results, recommendations\nSpeak to a policy audience (your classmates are pretending to be city officials)\nBe ready for 1-2 questions\nYou are trying to win the bid! Convince the audience of your agency’s work.\n\nWhat NOT to do:\n\nDon’t read slides verbatim\nDon’t show code\nDon’t go into technical details\nDon’t go over 5 minutes (I’ll cut you off!)"
+  },
+  {
+    "objectID": "labs/lab_3/Midterm_2026.html#grading-rubric-scaled-to-15-of-course-grade",
+    "href": "labs/lab_3/Midterm_2026.html#grading-rubric-scaled-to-15-of-course-grade",
+    "title": "Midterm Challenge: Philadelphia Housing Price Prediction",
+    "section": "Grading Rubric (Scaled to 15% of course grade)",
+    "text": "Grading Rubric (Scaled to 15% of course grade)\n\nPresentation Slides\n\n\n\n\n\n\n\n\nComponent\nPoints\nCriteria\n\n\n\n\nResearch Question\n2\nClear motivation, Set the stage\n\n\nData Overview\n2\nConcise description of sources, sample size\n\n\nVisualizations\n3\n2-3 polished, publication-quality visualizations; clear takeaways\n\n\nModel Comparison\n3\nClean results table; clear winner; interprets improvement\n\n\nKey Findings\n3\nTop predictors identified; coefficients interpreted correctly\n\n\nPresentation Quality\n3\nProfessional design, no typos, flows logically, appropriate for audience\n\n\n\nKey: Slides should tell a compelling story without technical jargon. Imagine presenting to the Deputy Mayor.\n\n\n\nIn-Class Presentation\n\n\n\n\n\n\n\n\nComponent\nPoints\nCriteria\n\n\n\n\nContent\n2\nCovers key points efficiently, answers questions thoughtfully\n\n\nTime Management\n2\nFinishes within 5 minutes without rushing\n\n\n\n\n\n\nTechnical Appendix\n\n\n\n\n\n\n\n\nComponent\nPoints\nCriteria\n\n\n\n\nData Cleaning\n3\nComplete code, proper filtering, missing value handling, documentation\n\n\nEDA\n3\n5+ visualizations, each with interpretation\n\n\nFeature Engineering\n3\nBuffers , kNN , census , interactions , all properly created\n\n\nModel Building\n3\n4 progressive models, proper specification, handles sparse categories\n\n\nCross-Validation\n3\nProper 10-fold CV, results table, code runs without errors\n\n\nDiagnostics\n3\nResidual plots included, interpreted, violations addressed\n\n\nCode Quality\n3\nClean, commented, reproducible, follows best practices, no errors\n\n\n\nKey: This is where technical reviewers verify your work. All code must run without errors & be reproducible!!."
+  },
+  {
+    "objectID": "labs/lab_3/Midterm_2026.html#example-presentation-structure",
+    "href": "labs/lab_3/Midterm_2026.html#example-presentation-structure",
+    "title": "Midterm Challenge: Philadelphia Housing Price Prediction",
+    "section": "Example Presentation Structure",
+    "text": "Example Presentation Structure\nSlide 1: Title - Your team name and teammates - Project title - Date\nSlide 2: The Problem\nSlide 3: Data Sources - Property sales (n = X,XXX, 2023-2024) - Census ACS (income, education, poverty) - OpenDataPhilly (parks, transit, crime)\nSlide 4: Where Are Expensive Homes? - [Map visualization] - Key pattern observed\nSlide 5: What Drives Prices? - [Best scatter plot or faceted visualization] - Key relationship identified\nSlide 6: Model Comparison - [Results table] - “Each layer improves prediction”\nSlide 7: Top Predictors - Neighborhood (biggest impact) - Square footage (β = X) - Transit access (β = Y)\nSlide 8: Model Performance - Final RMSE: 0.26 (log scale) - Translation: ~26% typical error - Beats baseline by 40%\nSlide 9: Hardest to Predict - [Visualization of residuals by neighborhood]\nSlide 10: Recommendations\nSlide 11: Limitations & Next Steps\nSlide 12: Questions? - Thank you - [Contact info]"
+  },
+  {
+    "objectID": "labs/lab_3/Midterm_2026.html#tips-for-success",
+    "href": "labs/lab_3/Midterm_2026.html#tips-for-success",
+    "title": "Midterm Challenge: Philadelphia Housing Price Prediction",
+    "section": "Tips for Success",
+    "text": "Tips for Success\n\nStart Early\n\nData cleaning always takes longer than expected\nOpenDataPhilly can be slow to download\nLeave time for troubleshooting AND RENDERING!!!\n\n\n\nCheck Your Work\n\nOrganize your file directory from the beginning.\nRun your entire .qmd file from scratch with a clean workspace before submitting\nMake sure all visualizations display\nCheck that your narrative flows logically"
+  },
+  {
+    "objectID": "labs/lab_3/Midterm_2026.html#frequently-asked-questions",
+    "href": "labs/lab_3/Midterm_2026.html#frequently-asked-questions",
+    "title": "Midterm Challenge: Philadelphia Housing Price Prediction",
+    "section": "Frequently Asked Questions",
+    "text": "Frequently Asked Questions\nQ: Do I have to create both slides AND an appendix?\nA: Yes! Slides are your main deliverable (present findings). Appendix proves you did the work correctly.\nQ: Can code appear in my presentation slides?\nA: NO! Slides are for city officials. All code goes in the technical appendix.\nQ: How many slides should I have?\nA: 10-15 maximum. Quality over quantity. Each slide should have a clear purpose.\nQ: Can I use a different city?\nA: No, everyone uses Philadelphia for comparability.\nQ: How do I make my .qmd render as revealjs slides?\nA: Use format: revealjs in your YAML (see template above). Test it early! See the .qmd files behind my lecture slides for examples.\nQ: My presentation is 8 minutes. Is that okay?\nA: NO! You must cut it to 5 minutes. Practice and trim ruthlessly.\nQ: Should I include all 5 EDA visualizations in my slides?\nA: No! Slides should have your best 2-3 visualizations. Put all 5 in the appendix.\nQ: My RMSE is 0.35 in log scale. Is that good?\nA: Depends on your data, but 0.25-0.45 is typical for hedonic models. Compare to your baseline or put your data back into dollars!\nQ: Should I remove all outliers?\nA: No! Only remove obvious errors. Use log transformations to handle legitimate outliers.\nQ: What if my code works on my computer but not when I render it?\nA: Start fresh, restart R, render in a clean session. Check for hard-coded paths. Be aware that sometimes quarto will point to an error on one line, but actually the error is somewhere else.\nQ: Can I use ChatGPT/Claude to write my analysis?\nA: You may use AI for debugging code, but NOT for writing your analysis. I want to read your interpretation in your own words.\nQ: How formal should my presentation be?\nA: Professional but not stuffy. Like you’re briefing a city council member who’s smart but doesn’t know statistics.\nQ: What happens if I go over 5 minutes?\nA: I’ll politely cut you off and you’ll lose points. Practice with a timer!"
+  },
+  {
+    "objectID": "labs/lab_3/Midterm_2026.html#example-of-your-groups-workflow",
+    "href": "labs/lab_3/Midterm_2026.html#example-of-your-groups-workflow",
+    "title": "Midterm Challenge: Philadelphia Housing Price Prediction",
+    "section": "Example of Your Group’s Workflow",
+    "text": "Example of Your Group’s Workflow\nWeek 1: - Download data - Initial cleaning - Basic EDA\nWeek 2: - Feature engineering - Build 4 models - Run cross-validation - Diagnostics - Write conclusions - Proofread and submit"
+  },
+  {
+    "objectID": "labs/lab_3/Midterm_2026.html#academic-integrity",
+    "href": "labs/lab_3/Midterm_2026.html#academic-integrity",
+    "title": "Midterm Challenge: Philadelphia Housing Price Prediction",
+    "section": "Academic Integrity",
+    "text": "Academic Integrity\n\nYou may discuss concepts with classmates\nYou may NOT share code or slides with other teams\nAll work must be your own (or your teams)\nCite any external resources used\nAcknowledge how you used AI in your work and which AI you used (For example, Claude helped me today in coming up with a draft of this assignment, but I edited it thoroughly!)"
+  },
+  {
+    "objectID": "labs/lab_3/Midterm_2026.html#final-checklist-before-submitting",
+    "href": "labs/lab_3/Midterm_2026.html#final-checklist-before-submitting",
+    "title": "Midterm Challenge: Philadelphia Housing Price Prediction",
+    "section": "Final Checklist Before Submitting",
+    "text": "Final Checklist Before Submitting\n\nPresentation Slides\n\nRenders correctly as revealjs slides\n10-15 slides maximum\nNo code visible anywhere\n2-3 polished visualizations\nClear model comparison table\nNo typos or formatting errors\nProfessional theme applied\nTested presentation timing (&lt;5 minutes)\n\n\n\nTechnical Appendix\n\nRenders correctly as HTML document\nAll code visible and commented\nData cleaning fully documented\n5+ EDA visualizations included\nAll features properly created\n4 models with full output\n10-fold CV code runs without errors\nDiagnostic plots included\nSparse categories handled correctly\nTested that it knits without errors\n\n\n\nBoth Files\n\nProper file naming convention\nBoth .qmd source files included\nData sources clearly documented\nNo hard-coded file paths (use relative paths! - this should be reproducible)\nUploaded to Canvas on time"
   }
 ]
