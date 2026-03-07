@@ -125,21 +125,10 @@ This dataset contains actual property sales with:
 - Clean it (missing values, outliers, data errors)
 - Filter to 2023-2025 residential sales only
 
-install.packages("tidyverse")
-install.packages("sf")
-install.packages("tidycensus")
-install.packages("tigris")
-install.packages("MASS")
-install.packages("dplyr")
-install.packages("scales")
-install.packages("ggplot2")
-install.packages("caret")
-install.packages("car")
-install.packages("knitr")
-install.packages("readr")
-install.packages("patchwork")
-install.packages("viridisLite")
 
+
+```{r packages}
+echo = FALSE
 library(sf)
 library(tidyverse)
 library(tidycensus)
@@ -153,8 +142,15 @@ library(car)
 library(knitr)
 library(readr)
 library(patchwork)
-census_api_key("a4f6ddd29c284ee5965e4f96800d34c95197ba06", install = TRUE)
+```
+```{r load api}
+echo = FALSE
+census_api_key("fadfb87c0c7417766780c9bf52b8df9adef61e21", overwrite = TRUE)
 
+Sys.getenv("CENSUS_API_KEY")
+```
+
+```{r primary data}
 phl_props <- st_read("C:/Users/Liz/Desktop/y2s2/PPA/crouse/labs/lab_3/data/opa_properties_public.geojson")
 
 phl_props_filtered <- phl_props %>% 
@@ -165,6 +161,8 @@ phl_props_filtered <- phl_props %>%
     !is.na(total_livable_area) & total_livable_area > 0,
     !is.na(number_of_bedrooms) & number_of_bedrooms > 0
   )
+```
+
 
 ### Secondary Datasets (You Choose!)
 
@@ -172,7 +170,7 @@ phl_props_filtered <- phl_props %>%
 
 **Your task:** Think like an urban planner. What location factors matter for housing prices in Philadelphia?
 
-
+```{r secondary data}
 variables <- c(med_inc = "B19013_001", 
               burden_renter_total = "B25070_001",
               burden_renter_30 = "B25070_007",
@@ -213,7 +211,7 @@ acs_data <- get_acs(
   survey = "acs5",
   geometry = TRUE)
   
-
+```
 ---
 
 ## Assignment Structure
@@ -250,22 +248,35 @@ Your work should follow this workflow, with results split between presentation a
 
 1. Distribution of sale prices (histogram)
 
-hist(phl_props_filtered$log_sale_price)
-
+```{r plot}
 phl_props_filtered <- phl_props_filtered %>%
   mutate(log_sale_price = log(sale_price))
-  
+
+ggplot(phl_props_filtered, aes(x = log_sale_price)) +
+  geom_histogram(
+    bins = 30,
+    color = "black",
+    fill = "steelblue"
+  ) +
+  labs(
+    title = "Distribution of Log Sale Prices",
+    x = "Log Sale Price",
+    y = "Number of Properties"
+  ) +
+  theme_minimal()
+
+```  
 
 2. Geographic distribution (map)
-
+```{r plot}
 ggplot(phl_props_filtered) +
-  geom_sf(aes(color = log_sale_price), size = .0001) +
+  geom_sf(aes(color = log_sale_price), size = .001) +
   scale_color_viridis_c(option = "plasma") +
   theme_void() +
-  labs(color = "Sale Price ($)")
-  
+  labs(title = "Geographic Distribution of Sale Prices", color = "Sale Price ($)")
+```
 3. Price vs. structural features (scatter plots)
-
+```{r plots}
 ggplot(phl_props_filtered,
        aes(x = number_of_bedrooms, y = sale_price)) +
   geom_point(alpha = 0.6, size = 1.5) +
@@ -276,8 +287,11 @@ ggplot(phl_props_filtered,
     x = "Number of Bedrooms",
     y = "Sale Price ($)"
   )
-
+```
 4. Price vs. spatial features (scatter plots)
+
+
+
 5. One creative visualization
 
 **For presentation slides:** Select your **best 2-3 visualizations** that tell a compelling story
@@ -308,10 +322,80 @@ ggplot(phl_props_filtered,
    - Parks within 500ft, 1000ft
    - Transit stops within 400ft
    - Schools, crime, etc.
+   
+```{r buffers}
+
+##For our buffer spatial feature, we chose to count the number of trees within a 500 foot radius of each property, since tree cover often correlates to property value. 
+
+phl_trees <- st_read("C:/Users/Liz/Desktop/y2s2/PPA/crouse/labs/lab_3/data/ppr_tree_inventory_2025.geojson")
+phl_trees <- phl_trees %>% st_transform(2722)
+
+##Create property buffers
+prop_buffers_500 <- st_buffer(phl_props_filtered, dist = 500)
+
+trees_props <- st_join(
+  phl_trees,
+  prop_buffers_500,
+  join = st_within,
+  left = FALSE)
+
+
+```
 
 2. **k-Nearest Neighbor features**:
 
    - Average distance to k nearest parks, transit, etc.
+   
+   
+```{r k nearest neighbor}   
+
+##For k-nearest neighbor, we chose to evaluate the distance of each property to the nearest 1, 5, and 10 tracts with high heat vulnerability, as this combination of demographic, economic, and physical factors often correlates with property values. 
+
+heat_vulnerability <- st_read("C:/Users/Liz/Desktop/y2s2/PPA/crouse/labs/lab_3/data/heat_vulnerability_ct.geojson")
+
+##Filtering only high heat vulnerability districts
+high_heat_vuln <- heat_vulnerability %>%
+  filter(n_veryhigh == 1)
+
+##Creating the distance matrix
+dist_matrix <- st_distance(phl_props_filtered, high_heat_vuln)
+dist_matrix <- as.matrix(dist_matrix)     
+dist_matrix <- units::drop_units(dist_matrix)
+
+##Performing the k nearest neighbor function
+knn_distance <- function(dist_matrix, k) {
+  apply(dist_matrix, 1, function(x) {
+    mean(sort(x)[1:k])
+  })
+}
+
+##Averaging distance to 1, 5, 10 nearest neighbors
+avg_knn_1 <- knn_distance(dist_matrix, k = 1)
+avg_knn_5 <- knn_distance(dist_matrix, k = 5)
+avg_knn_10 <- knn_distance(dist_matrix, k = 10)
+
+##Joining back to properties
+phl_props_filtered$avg_knn_1 <- avg_knn_1
+phl_props_filtered$avg_knn_5 <- avg_knn_5
+phl_props_filtered$avg_knn_10 <- avg_knn_10
+
+##Evaluating results
+phl_props_filtered %>%
+  st_drop_geometry() %>%
+  dplyr::select(avg_knn_5) %>%
+  summary()
+
+phl_props_filtered %>%
+  st_drop_geometry() %>%
+  dplyr::select(avg_knn_1) %>%
+  summary()
+
+phl_props_filtered %>%
+  st_drop_geometry() %>%
+  dplyr::select(avg_knn_10) %>%
+  summary()
+
+```
 
 3. **Census variables**:
 
