@@ -161,6 +161,7 @@ phl_props_filtered <- phl_props %>%
     !is.na(total_livable_area) & total_livable_area > 0,
     !is.na(number_of_bedrooms) & number_of_bedrooms > 0
   )
+phl_props_filtered <- phl_props_filtered %>% st_transform(2722)
 ```
 
 
@@ -209,7 +210,22 @@ acs_data <- get_acs(
   county = "Philadelphia",
   year = 2023,
   survey = "acs5",
-  geometry = TRUE)
+  geometry = TRUE,
+  output = "wide")
+
+acs_data <- acs_data %>% st_transform(2722)
+
+props_tract <- st_join(phl_props_filtered, acs_data)
+prop_summary <- props_tract %>%
+  st_drop_geometry() %>%
+  group_by(GEOID) %>%
+  summarise(
+    mean_price = mean(sale_price, na.rm = TRUE),
+    n_properties = n()
+  )
+
+tract_analysis <- acs_data %>%
+  left_join(prop_summary, by = "GEOID")
   
 ```
 ---
@@ -248,7 +264,7 @@ Your work should follow this workflow, with results split between presentation a
 
 1. Distribution of sale prices (histogram)
 
-```{r plot}
+```{r plot1}
 phl_props_filtered <- phl_props_filtered %>%
   mutate(log_sale_price = log(sale_price))
 
@@ -268,7 +284,7 @@ ggplot(phl_props_filtered, aes(x = log_sale_price)) +
 ```  
 
 2. Geographic distribution (map)
-```{r plot}
+```{r plot2}
 ggplot(phl_props_filtered) +
   geom_sf(aes(color = log_sale_price), size = .001) +
   scale_color_viridis_c(option = "plasma") +
@@ -276,7 +292,7 @@ ggplot(phl_props_filtered) +
   labs(title = "Geographic Distribution of Sale Prices", color = "Sale Price ($)")
 ```
 3. Price vs. structural features (scatter plots)
-```{r plots}
+```{r plot3}
 ggplot(phl_props_filtered,
        aes(x = number_of_bedrooms, y = sale_price)) +
   geom_point(alpha = 0.6, size = 1.5) +
@@ -289,10 +305,23 @@ ggplot(phl_props_filtered,
   )
 ```
 4. Price vs. spatial features (scatter plots)
-
+**see feature engineering section 
 
 
 5. One creative visualization
+
+```{r plot5}
+ggplot(tract_analysis) +
+  geom_sf(aes(fill = n_properties)) +
+  scale_fill_viridis_c() +
+  theme_void() +
+  labs(
+    title = "Properties Sold by Tract",
+    fill = "Number of Properties"
+  )
+
+```
+
 
 **For presentation slides:** Select your **best 2-3 visualizations** that tell a compelling story
 
@@ -338,8 +367,41 @@ trees_props <- st_join(
   prop_buffers_500,
   join = st_within,
   left = FALSE)
+trees_by_prop <- trees_props %>%
+  group_by(pin) %>%
+  summarise(
+    n_trees = n(),
+    .groups = "drop"
+  )
+##Join back to buffers
+prop_buffers_trees <- prop_buffers_500 %>%
+  left_join(
+    st_drop_geometry(trees_by_prop),
+    by = "pin") %>%
+  mutate(n_trees = replace_na(n_trees, 0)
+  )
 
 
+```
+
+
+
+##** TEAM NOTE: I can't render the following code for this plot #4 in phase 2 bc I only just create tree features here. If someone can think of a way to do it or change it so it can go earlier that would be great
+
+
+```{r spatial plot}
+
+ggplot(prop_buffers_trees,
+       aes(x = n_trees, y = sale_price)) +
+  geom_point(alpha = 0.6, size = 1.5) +
+  scale_y_continuous(labels = scales::comma) +
+  theme_minimal() +
+  labs(
+    title = "Sale Price vs. Number of Trees in 500ft Radius",
+    x = "Number of Trees",
+    y = "Sale Price ($)"
+  )
+   
 ```
 
 2. **k-Nearest Neighbor features**:
@@ -349,61 +411,61 @@ trees_props <- st_join(
    
 ```{r k nearest neighbor}   
 
-##For k-nearest neighbor, we chose to evaluate the distance of each property to the nearest 1, 5, and 10 tracts with high heat vulnerability, as this combination of demographic, economic, and physical factors often correlates with property values. 
+##For k-nearest neighbor, we chose to evaluate the distance of each property to the nearest 3, 5, and 10 trees, as this often correlates with property values. 
 
-heat_vulnerability <- st_read("C:/Users/Liz/Desktop/y2s2/PPA/crouse/labs/lab_3/data/heat_vulnerability_ct.geojson")
-
-##Filtering only high heat vulnerability districts
-high_heat_vuln <- heat_vulnerability %>%
-  filter(n_veryhigh == 1)
+schools <- st_read("C:/Users/Liz/Desktop/y2s2/PPA/crouse/labs/lab_3/data/Schools")
+schools <- schools %>% st_transform(2722)
 
 ##Creating the distance matrix
-dist_matrix <- st_distance(phl_props_filtered, high_heat_vuln)
-dist_matrix <- as.matrix(dist_matrix)     
-dist_matrix <- units::drop_units(dist_matrix)
 
-##Performing the k nearest neighbor function
-knn_distance <- function(dist_matrix, k) {
-  apply(dist_matrix, 1, function(x) {
+school_dist_matrix <- st_distance(phl_props_filtered, schools)
+school_dist_matrix <- as.matrix(school_dist_matrix)
+school_dist_matrix <- units::drop_units(school_dist_matrix)
+
+
+
+#Performing knn function
+school_knn <- function(school_dist_matrix, k) {
+  apply(school_dist_matrix, 1, function(x) {
     mean(sort(x)[1:k])
   })
 }
 
-##Averaging distance to 1, 5, 10 nearest neighbors
-avg_knn_1 <- knn_distance(dist_matrix, k = 1)
-avg_knn_5 <- knn_distance(dist_matrix, k = 5)
-avg_knn_10 <- knn_distance(dist_matrix, k = 10)
+# run function
+school_knn_3 <- school_knn(school_dist_matrix, k = 3)
+school_knn_5 <- school_knn(school_dist_matrix, k = 5)
+school_knn_10 <- school_knn(school_dist_matrix, k = 10)
 
-##Joining back to properties
-phl_props_filtered$avg_knn_1 <- avg_knn_1
-phl_props_filtered$avg_knn_5 <- avg_knn_5
-phl_props_filtered$avg_knn_10 <- avg_knn_10
+# attach to dataset
+phl_props_filtered$school_knn_3 <- school_knn_3
+phl_props_filtered$school_knn_5 <- school_knn_5
+phl_props_filtered$school_knn_10 <- school_knn_10
 
 ##Evaluating results
+
 phl_props_filtered %>%
   st_drop_geometry() %>%
-  dplyr::select(avg_knn_5) %>%
+  dplyr::select(school_knn_3) %>%
   summary()
 
 phl_props_filtered %>%
   st_drop_geometry() %>%
-  dplyr::select(avg_knn_1) %>%
+  dplyr::select(school_knn_5) %>%
   summary()
 
 phl_props_filtered %>%
   st_drop_geometry() %>%
-  dplyr::select(avg_knn_10) %>%
+  dplyr::select(school_knn_10) %>%
   summary()
 
 ```
 
 3. **Census variables**:
 
-   - Join median income, education, poverty, etc.
 
 4. **Interaction terms**:
 
-   - Theoretically motivated combinations
+
 
 **Deliverable (Appendix only):**
 
