@@ -35,6 +35,7 @@ library(lubridate)
 library(modelsummary)
 library(broom)
 library(ggtext)
+library(here)
 ```
 
 ---
@@ -45,11 +46,16 @@ library(ggtext)
 
 #### Load Primary Data
 ```{r load-data}
+getwd()
+
+
 #| message: false
 #| warning: false
+#| echo: false
 
-opa <- st_read("C:/Users/lizmc/Desktop/Y2S2/ppa/crouse/labs/lab_3/data/opa_properties_public.geojson", quiet = TRUE)%>%
+opa <- st_read("lab3_crouse/data/opa_properties_public.geojson", quiet = TRUE) %>%
   st_transform(2272)
+
 ```
 
 #### Filter to Residential Sales
