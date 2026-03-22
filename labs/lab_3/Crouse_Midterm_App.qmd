@@ -48,7 +48,7 @@ library(ggtext)
 #| message: false
 #| warning: false
 
-opa <- st_read("data/opa_properties_public.geojson", quiet = TRUE)%>%
+opa <- st_read("C:/Users/lizmc/Desktop/Y2S2/ppa/crouse/labs/lab_3/data/opa_properties_public.geojson", quiet = TRUE)%>%
   st_transform(2272)
 ```
 
@@ -235,7 +235,7 @@ cat("Census tracts loaded:", nrow(acs_data), "\n")
 #| warning: false
 
 # Load SEPTA transit stops
-septa_stops <- st_read("data/Transit_Stops_(Spring_2025).geojson", quiet = TRUE) %>%
+septa_stops <- st_read("C:/Users/lizmc/Desktop/Y2S2/ppa/crouse/labs/lab_3/data/Transit_Stops_(Spring_2025).geojson", quiet = TRUE) %>%
   st_transform(2272)
 
 # Load street tree inventory
@@ -243,7 +243,7 @@ phl_trees <- st_read("data/ppr_tree_inventory_2025.geojson", quiet = TRUE) %>%
   st_transform(2272)
 
 # Load schools
-schools <- st_read("data/Schools.geojson", quiet = TRUE) %>%
+schools <- st_read("data/Schools", quiet = TRUE) %>%
   st_transform(2272)
 
 # Load neighborhood boundaries
@@ -1166,14 +1166,6 @@ saveRDS(cv_m3,  "data/cv_m3.rds")
 saveRDS(cv_m4,  "data/cv_m4.rds")
 saveRDS(cv_m5b, "data/cv_m5b.rds")
 saveRDS(cv_m7,  "data/cv_m7.rds")
-
-# -----------------------------------------------------------
-# EDA plots (likely to reuse in slides)
-# -----------------------------------------------------------
-saveRDS(p1, "data/p1_transit.rds")    # Transit stops vs log price
-saveRDS(p2, "data/p2_trees.rds")      # Street trees vs log price
-saveRDS(p3, "data/p3_schools.rds")    # School distance vs log price
-saveRDS(p4, "data/p4_distcore.rds")   # Distance to Center City vs log price
 
 # -----------------------------------------------------------
 # Diagnostics plots
