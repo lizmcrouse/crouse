@@ -83,7 +83,7 @@ cat("  - Police beats:", nrow(policeBeats), "\n")
 ```
 
 ```{r pothole data}
-potholes <- read.csv("C:/Users/lizmc/Desktop/Y2S2/ppa/crouse/labs/lab_4/data/311_Service_Requests_20260328.csv")
+potholes <- read.csv(here("labs/lab_4/data/311_Service_Requests_20260328.csv"))
 
 potholes <- potholes[!is.na(potholes$LONGITUDE) & !is.na(potholes$LATITUDE), ]
 potholes <- st_as_sf(potholes, coords = c("LONGITUDE", "LATITUDE"), crs = 4326)
@@ -271,8 +271,6 @@ summary(fishnet$potholes.nn)
 
 ```{r morans}
 
-  data[[variable]][is.na(data[[variable]])] <- 0
-
 # Function to calculate Local Moran's I
 calculate_local_morans <- function(data, variable, k = 5) {
   
@@ -304,8 +302,8 @@ calculate_local_morans <- function(data, variable, k = 5) {
     )
 }
 
-# Apply to abandoned cars
-fishnet <- calculate_local_morans(fishnet, "potholes", k = 5)
+# Apply to potholes
+fishnet <- calculate_local_morans(fishnet, "countPotholes", k = 5)
 ```
 
 ```{r visualize morans}
@@ -334,4 +332,78 @@ ggplot() +
     subtitle = "High-High = Hot spots of disorder"
   ) +
   theme_crime()
+```
+
+```{r distance to hotspots}
+# Get centroids of "High-High" cells (hot spots)
+hotspots <- fishnet %>%
+  filter(moran_class == "High-High") %>%
+  st_centroid()
+
+# Calculate distance from each cell to nearest hot spot
+if (nrow(hotspots) > 0) {
+  fishnet <- fishnet %>%
+    mutate(
+      dist_to_hotspot = as.numeric(
+        st_distance(st_centroid(fishnet), hotspots %>% st_union())
+      )
+    )
+  
+  cat("✓ Calculated distance to abandoned car hot spots\n")
+  cat("  - Number of hot spot cells:", nrow(hotspots), "\n")
+} else {
+  fishnet <- fishnet %>%
+    mutate(dist_to_hotspot = 0)
+  cat("⚠ No significant hot spots found\n")
+}
+```
+
+```{r clean dataset for poisson}
+# Create clean modeling dataset
+fishnet_model <- fishnet %>%
+  st_drop_geometry() %>%
+  dplyr::select(
+    uniqueID,
+   countPotholes,
+    potholes.nn,
+    dist_to_hotspot
+  ) %>%
+  na.omit()  # Remove any remaining NAs
+
+cat("✓ Prepared modeling data\n")
+cat("  - Observations:", nrow(fishnet_model), "\n")
+cat("  - Variables:", ncol(fishnet_model), "\n")
+```
+
+```{r fit poisson}
+# Fit Poisson regression
+model_poisson <- glm(
+  countPotholes ~ potholes.nn + dist_to_hotspot,
+  data = fishnet_model,
+  family = "poisson"
+)
+
+# Summary
+summary(model_poisson)
+```
+
+```{r binomial regression}
+# Fit Negative Binomial model
+model_nb <- glm.nb(
+  countPotholes ~ potholes.nn + 
+    dist_to_hotspot,
+  data = fishnet_model
+)
+
+# Summary
+summary(model_nb)
+
+# Compare AIC (lower is better)
+cat("\nModel Comparison:\n")
+cat("Poisson AIC:", round(AIC(model_poisson), 1), "\n")
+cat("Negative Binomial AIC:", round(AIC(model_nb), 1), "\n")
+```
+
+```{r spatial cross validation}
+
 ```
