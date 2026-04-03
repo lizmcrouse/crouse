@@ -17,6 +17,8 @@ website:
             text: "Lab 2: Spatial Analysis and Visualization"
           - href: labs/lab_3/Crouse_Midterm_App.qmd
             text: "Lab 3: Philadelphia Housing Price Prediction"
+          - href: labs/lab_4/lab4_project/lab4_crouse.dqmd
+            text: "Lab 4:  Spatial Predictive Analysis"
 format:
   html:
     theme: cosmo

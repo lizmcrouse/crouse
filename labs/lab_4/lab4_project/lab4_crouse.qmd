@@ -1,6 +1,18 @@
 ---
-title: "lab_4"
-editor: visual
+title: "Lab 4: Spatial Predictive Analysis"
+subtitle: "Analyzing 311 Violations"
+author: "Liz Crouse"
+date: April 6, 2026
+format: 
+  html:
+    code-fold: false
+    toc: true
+    toc-location: left
+    theme: cosmo
+    embed-resources: true
+execute:
+  warning: false
+  message: false
 ---
 
 ```{r setup}
@@ -54,6 +66,12 @@ cat("✓ Working directory:", getwd(), "\n")
 
 ```
 
+#### Part 1: Data Loading & Exploration
+
+-   Load your 311 data and Chicago spatial boundaries
+-   Create visualizations showing the spatial distribution of your violation type
+-   Describe patterns you observe
+
 ```{r boundaries}
 
 #| message: false
@@ -83,7 +101,8 @@ cat("  - Police beats:", nrow(policeBeats), "\n")
 ```
 
 ```{r pothole data}
-potholes <- read.csv(here("labs/lab_4/data/311_Service_Requests_20260328.csv"))
+#| echo: FALSE
+potholes <- read.csv("C:/Users/lizmc/Desktop/Y2S2/ppa/crouse/labs/lab_4/data/311_Service_Requests_20260328.csv")
 
 potholes <- potholes[!is.na(potholes$LONGITUDE) & !is.na(potholes$LATITUDE), ]
 potholes <- st_as_sf(potholes, coords = c("LONGITUDE", "LATITUDE"), crs = 4326)
@@ -136,8 +155,15 @@ p1 + p2 +
     tag_levels = 'A'
   )
 
-# Describe patterns you obseve
+# Describe patterns you observe
+## Potholes are concentrated along the eastern edge of Chicago (shoreline of Lake Michigan), specifically in the northeastern area of the city. Smaller clusters appear in the north and southwest corners.
 ```
+
+#### Part 2: Fishnet Grid Creation
+
+-   Create a 500m x 500m fishnet grid
+-   Aggregate your violations to grid cells
+-   Visualize the count distribution
 
 ```{r fishnet}
 # Create 500m x 500m grid
@@ -198,10 +224,18 @@ ggplot() +
   theme_crime()
 ```
 
+#### Part 3: Spatial Features
+
+-   Calculate k-nearest neighbor features
+-   Perform Local Moran's I analysis
+-   Identify hot spots and cold spots
+-   Create distance-to-hotspot measures
+-   Join any additional contextual data if you are looking for more to do and really get into this (e.g., demographics, land use)
+
 ```{r kernel density}
 #| message: false
 
-# Convert burglaries to ppp (point pattern) format for spatstat
+# Convert potholes to ppp (point pattern) format for spatstat
 potholes_ppp <- as.ppp(
   st_coordinates(potholes),
   W = as.owin(st_bbox(chicagoBoundary))
@@ -358,12 +392,19 @@ if (nrow(hotspots) > 0) {
 }
 ```
 
+#### Part 4: Count Regression Models
+
+-   Fit Poisson regression
+-   Fit Negative Binomial regression
+-   Compare model fit (AIC)
+
 ```{r clean dataset for poisson}
 # Create clean modeling dataset
 fishnet_model <- fishnet %>%
   st_drop_geometry() %>%
   dplyr::select(
     uniqueID,
+    District,
    countPotholes,
     potholes.nn,
     dist_to_hotspot
@@ -402,8 +443,143 @@ summary(model_nb)
 cat("\nModel Comparison:\n")
 cat("Poisson AIC:", round(AIC(model_poisson), 1), "\n")
 cat("Negative Binomial AIC:", round(AIC(model_nb), 1), "\n")
+
 ```
+
+#### Part 5: Spatial Cross-Validation
+
+-   Implement Leave-One-Group-Out cross-validation on data
+-   Calculate and report error metrics (MAE, RMSE)
 
 ```{r spatial cross validation}
 
+# Get unique districts
+districts <- unique(fishnet_model$District)
+cv_results <- tibble()
+
+cat("Running LOGO Cross-Validation...\n")
+
+for (i in seq_along(districts)) {
+  
+  test_district <- districts[i]
+  
+  # Split data
+  train_data <- fishnet_model %>% filter(District != test_district)
+  test_data <- fishnet_model %>% filter(District == test_district)
+  
+  # Fit model on training data
+  model_cv <- glm.nb(
+  countPotholes ~ potholes.nn + dist_to_hotspot,
+    data = train_data
+  )
+  
+  # Predict on test data
+  test_data <- test_data %>%
+    mutate(
+      prediction = predict(model_cv, test_data, type = "response")
+    )
+  
+  # Calculate metrics
+  mae <- mean(abs(test_data$countPotholes - test_data$prediction))
+  rmse <- sqrt(mean((test_data$countPotholes - test_data$prediction)^2))
+  
+  # Store results
+  cv_results <- bind_rows(
+    cv_results,
+    tibble(
+      fold = i,
+      test_district = test_district,
+      n_test = nrow(test_data),
+      mae = mae,
+      rmse = rmse
+    )
+  )
+  
+  cat("  Fold", i, "/", length(districts), "- District", test_district, 
+      "- MAE:", round(mae, 2), "\n")
+}
+
+# Overall results
+cat("\n✓ Cross-Validation Complete\n")
+cat("Mean MAE:", round(mean(cv_results$mae), 2), "\n")
+cat("Mean RMSE:", round(mean(cv_results$rmse), 2), "\n")
+```
+
+```{r final predictions}
+# Fit final model on all data
+final_model <- glm.nb(
+   countPotholes ~ potholes.nn + dist_to_hotspot,
+  data = fishnet_model
+)
+
+# Add predictions back to fishnet
+fishnet <- fishnet %>%
+  mutate(
+    prediction_nb = predict(final_model, fishnet_model, type = "response")[match(uniqueID, fishnet_model$uniqueID)]
+  )
+
+# Also add KDE predictions (normalize to same scale as counts)
+kde_sum <- sum(fishnet$kde_value, na.rm = TRUE)
+count_sum <- sum(fishnet$countPotholes, na.rm = TRUE)
+fishnet <- fishnet %>%
+  mutate(
+    prediction_kde = (kde_value / kde_sum) * count_sum
+  )
+```
+
+#### Part 6: Model Evaluation
+
+-   Compare to KDE baseline
+
+```{r compare to baseline}
+#| fig-width: 12
+#| fig-height: 4
+
+# Create three maps
+p1 <- ggplot() +
+  geom_sf(data = fishnet, aes(fill = countPotholes), color = NA) +
+  scale_fill_viridis_c(name = "Count", option = "plasma", limits = c(0, 15)) +
+  labs(title = "Actual Potholes") +
+  theme_crime()
+
+p2 <- ggplot() +
+  geom_sf(data = fishnet, aes(fill = prediction_nb), color = NA) +
+  scale_fill_viridis_c(name = "Predicted", option = "plasma", limits = c(0, 15)) +
+  labs(title = "Model Predictions (Neg. Binomial)") +
+  theme_crime()
+
+p3 <- ggplot() +
+  geom_sf(data = fishnet, aes(fill = prediction_kde), color = NA) +
+  scale_fill_viridis_c(name = "Predicted", option = "plasma", limits = c(0, 15)) +
+  labs(title = "KDE Baseline Predictions") +
+  theme_crime()
+
+p1 + p2 + p3 +
+  plot_annotation(
+    title = "Actual vs. Predicted Potholes",
+    subtitle = "Does our complex model outperform simple KDE?"
+  )
+```
+
+```{r comparison metrics}
+# Calculate performance metrics
+comparison <- fishnet %>%
+  st_drop_geometry() %>%
+  filter(!is.na(prediction_nb), !is.na(prediction_kde)) %>%
+  summarize(
+    model_mae = mean(abs(countPotholes - prediction_nb)),
+    model_rmse = sqrt(mean((countPotholes - prediction_nb)^2)),
+    kde_mae = mean(abs(countPotholes - prediction_kde)),
+    kde_rmse = sqrt(mean((countPotholes - prediction_kde)^2))
+  )
+
+comparison %>%
+  pivot_longer(everything(), names_to = "metric", values_to = "value") %>%
+  separate(metric, into = c("approach", "metric"), sep = "_") %>%
+  pivot_wider(names_from = metric, values_from = value) %>%
+  kable(
+    digits = 2,
+    caption = "Model Performance Comparison"
+  ) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
 ```
