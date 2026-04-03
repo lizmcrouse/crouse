@@ -398,6 +398,28 @@ if (nrow(hotspots) > 0) {
 -   Fit Negative Binomial regression
 -   Compare model fit (AIC)
 
+```{r join police districts}
+# Strip District if it exists from a previous run
+fishnet <- fishnet %>% dplyr::select(-any_of("District"))
+
+# Join district information to fishnet via centroids
+fishnet_centroids <- st_join(
+  st_centroid(fishnet),
+  dplyr::select(policeDistricts, District),
+  join = st_within,
+  left = TRUE
+) %>%
+  st_drop_geometry() %>%
+  dplyr::select(uniqueID, District)
+
+fishnet <- fishnet %>%
+  left_join(fishnet_centroids, by = "uniqueID")
+
+cat("✓ Joined police districts\n")
+cat("  - Districts:", length(unique(fishnet$District)), "\n")
+cat("  - Cells with District:", sum(!is.na(fishnet$District)), "\n")
+```
+
 ```{r clean dataset for poisson}
 # Create clean modeling dataset
 fishnet_model <- fishnet %>%
