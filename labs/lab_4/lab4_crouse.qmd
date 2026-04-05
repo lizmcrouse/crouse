@@ -19,7 +19,7 @@ execute:
 
 #| message: false
 #| warning: false
-#| echo: false
+echo = FALSE
 
 
 # Load required packages
@@ -120,6 +120,11 @@ cat("  - Date range:", format(min(potholes$CREATED_DATE, na.rm = TRUE)), "to",
 #| fig-width: 10
 #| fig-height: 5
 
+#Here, I create simple visualizations showing hotspots of potholes through kernel densities.
+
+### I chose to build a model using pothole data from the city of Chicago. As maintenance of public facilities in lower income and/or high crime areas is routinely lacking, I wanted to analyze whether pothole data could teach us anything about crime patterns in Chicago. I was interested in using specifically the street pothole data (as opposed to alleys) because I thought it would add an interesting layer of logic that puts the onus onto the public works department rather than the residents of given neighborhoods. In theory, the city should be responsible for maintaining streets, so if there are many potholes in an area it could indicate underinvestment from the city, which could be connected to high crime.
+
+
 # Simple point map
 p1 <- ggplot() + 
   geom_sf(data = chicagoBoundary, fill = "gray95", color = "gray60") +
@@ -155,8 +160,8 @@ p1 + p2 +
     tag_levels = 'A'
   )
 
-# Describe patterns you observe
-## Potholes are concentrated along the eastern edge of Chicago (shoreline of Lake Michigan), specifically in the northeastern area of the city. Smaller clusters appear in the north and southwest corners.
+
+### Potholes are concentrated along the eastern edge of Chicago (shoreline of Lake Michigan), specifically in the northeastern area of the city. Smaller clusters appear in the north and southwest corners.
 ```
 
 #### Part 2: Fishnet Grid Creation
@@ -166,6 +171,8 @@ p1 + p2 +
 -   Visualize the count distribution
 
 ```{r fishnet}
+#This step creates the fishnet that will act as the foundation of the rest of the study, allowing me to analyze current conditions and predict future outcomes on a uniform scale across the city.
+
 # Create 500m x 500m grid
 fishnet <- st_make_grid(
   chicagoBoundary,
@@ -187,7 +194,9 @@ cat("  - Cell area:", round(st_area(fishnet[1,])), "square meters\n")
 ```
 
 ```{r aggregate}
-# Spatial join: which cell contains each burglary?
+#This step counts the potholes in each fishnet grid cell and joins it back to the fishnet data.
+
+# Spatial join
 potholes_fishnet <- st_join(potholes, fishnet, join = st_within) %>%
   st_drop_geometry() %>%
   group_by(uniqueID) %>%
@@ -206,6 +215,8 @@ fishnet <- fishnet %>%
 ```{r visualize aggregate}
 #| fig-width: 8
 #| fig-height: 6
+
+#Like I did with kernel density, here I show the presence of potholes aggregated by grid cell. Like with kernel density, the highest concentration is in the northeast area of the city along the lakeshore.
 
 # Visualize aggregated counts
 ggplot() +
@@ -234,6 +245,7 @@ ggplot() +
 
 ```{r kernel density}
 #| message: false
+#Here I use kernel density as a baseline to see if I can build a model that better predicts outcomes.
 
 # Convert potholes to ppp (point pattern) format for spatstat
 potholes_ppp <- as.ppp(
@@ -286,6 +298,8 @@ ggplot() +
 ```{r knn}
 #| message: false
 
+#Here I perform the k-nearest neighbor function and join it back to the fishnet. This represents another version of showing density by counting the 3 closest potholes to a grid cell and averaging them into the column potholes.nn
+
 # Get coordinates
 fishnet_coords <- st_coordinates(st_centroid(fishnet))
 pothole_coords <- st_coordinates(potholes)
@@ -304,6 +318,8 @@ summary(fishnet$potholes.nn)
 ```
 
 ```{r morans}
+
+#Here I calculate the local Moran's I to determine whether errors are randomly distributed or concentrated in certain areas.I do this to identify "high-high" hotspots, or areas where a cluster of potholes appear in multiple contiguous cells.
 
 # Function to calculate Local Moran's I
 calculate_local_morans <- function(data, variable, k = 5) {
@@ -369,6 +385,8 @@ ggplot() +
 ```
 
 ```{r distance to hotspots}
+#Finally, I create one more type of density measure: distance to hotspots. I extract centroid coordinates from the high-high cells identified by the local moran's test and calculate how close each grid cell is to the nearest high-high centroid.
+
 # Get centroids of "High-High" cells (hot spots)
 hotspots <- fishnet %>%
   filter(moran_class == "High-High") %>%
@@ -399,6 +417,9 @@ if (nrow(hotspots) > 0) {
 -   Compare model fit (AIC)
 
 ```{r join police districts}
+
+#First I join police districts from the beginning of the code to my fishnet cells for predictive analysis.
+
 # Strip District if it exists from a previous run
 fishnet <- fishnet %>% dplyr::select(-any_of("District"))
 
@@ -439,6 +460,8 @@ cat("  - Variables:", ncol(fishnet_model), "\n")
 ```
 
 ```{r fit poisson}
+#I create a Poisson regression, which better accounts for random distributions by offering a longer tail in its fit for cells with 0 potholes.
+
 # Fit Poisson regression
 model_poisson <- glm(
   countPotholes ~ potholes.nn + dist_to_hotspot,
@@ -451,6 +474,8 @@ summary(model_poisson)
 ```
 
 ```{r binomial regression}
+#Here I fit a negative binomial model, which is a more comprehensive model for count data and can account for over-dispersion.
+
 # Fit Negative Binomial model
 model_nb <- glm.nb(
   countPotholes ~ potholes.nn + 
@@ -474,6 +499,8 @@ cat("Negative Binomial AIC:", round(AIC(model_nb), 1), "\n")
 -   Calculate and report error metrics (MAE, RMSE)
 
 ```{r spatial cross validation}
+
+#I run spatial cross validation using the Leave One Group Out method to determine how accurate my model is using existing data.
 
 # Get unique districts
 districts <- unique(fishnet_model$District)
@@ -528,6 +555,8 @@ cat("Mean RMSE:", round(mean(cv_results$rmse), 2), "\n")
 ```
 
 ```{r final predictions}
+#Generate final predictions
+
 # Fit final model on all data
 final_model <- glm.nb(
    countPotholes ~ potholes.nn + dist_to_hotspot,
@@ -557,6 +586,8 @@ fishnet <- fishnet %>%
 #| fig-width: 12
 #| fig-height: 4
 
+# Visualize comparisons between the two models
+
 # Create three maps
 p1 <- ggplot() +
   geom_sf(data = fishnet, aes(fill = countPotholes), color = NA) +
@@ -585,6 +616,10 @@ p1 + p2 + p3 +
 
 ```{r comparison metrics}
 # Calculate performance metrics
+
+#Ultimately, the negative binomial model more accurately predicted pothole outcomes, seen in the lower RMSE and MAE values. For predictive purposes moving forward, I recommend the negative binomial count regression.
+
+
 comparison <- fishnet %>%
   st_drop_geometry() %>%
   filter(!is.na(prediction_nb), !is.na(prediction_kde)) %>%

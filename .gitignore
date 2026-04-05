@@ -38,3 +38,4 @@ Thumbs.db
 *~
 /.quarto/
 **/*.quarto_ipynb
+/labs/lab_3/data
