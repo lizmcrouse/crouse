@@ -19,6 +19,8 @@ website:
             text: "Lab 3: Philadelphia Housing Price Prediction"
           - href: labs/lab_4/lab4_crouse.qmd
             text: "Lab 4:  Spatial Predictive Analysis"
+          - href: labs/lab_5/lab5_crouse.qmd
+            text: "Lab 5: Bikeshare Space Time Predictions"
 format:
   html:
     theme: cosmo
