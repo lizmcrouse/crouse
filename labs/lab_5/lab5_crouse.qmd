@@ -65,6 +65,8 @@ census_api_key(Sys.getenv("CENSUS_API_KEY"))
 ```
 ```{r data setup}
 indego_q3 <- read_csv(here("labs/lab_5/data/indego-trips-2025-q3.csv"))
+indego_q1 <- read_csv(here("labs/lab_5/data/indego-trips-2025-q1.csv"))
+
 ```
 ```{r data exploration}
 # How many trips?
@@ -114,17 +116,62 @@ indego_q3 <- indego_q3 %>%
 
 # Look at temporal features
 head(indego_q3 %>% select(start_datetime, interval60, week, dotw, hour, weekend))
+
+indego_q1 <- indego_q1 %>%
+  mutate(
+    # Parse datetime
+    start_datetime = mdy_hm(start_time),
+    end_datetime = mdy_hm(end_time),
+    
+    # Create hourly bins
+    interval60 = floor_date(start_datetime, unit = "hour"),
+    
+    # Extract time features
+    week = week(interval60),
+    month = month(interval60, label = TRUE),
+    dotw = wday(interval60, label = TRUE),
+    hour = hour(interval60),
+    date = as.Date(interval60),
+    
+    # Create useful indicators
+    weekend = ifelse(dotw %in% c("Sat", "Sun"), 1, 0),
+    rush_hour = ifelse(hour %in% c(7, 8, 9, 16, 17, 18), 1, 0)
+  )
+
+# Look at temporal features
+head(indego_q1 %>% select(start_datetime, interval60, week, dotw, hour, weekend))
+
+
 ```
+
+
 ```{r trips over time}
 #| message: false
 #| warning: false
 
 # Daily trip counts
-daily_trips <- indego_q3 %>%
+daily_trips_q3 <- indego_q3 %>%
   group_by(date) %>%
   summarize(trips = n())
 
-ggplot(daily_trips, aes(x = date, y = trips)) +
+ggplot(daily_trips_q3, aes(x = date, y = trips)) +
+  geom_line(color = "#3182bd", linewidth = 1) +
+  geom_smooth(se = FALSE, color = "red", linetype = "dashed") +
+  labs(
+    title = "Indego Daily Ridership - Q3 2025",
+    subtitle = "Winter demand patterns in Philadelphia",
+    x = "Date",
+    y = "Daily Trips",
+    caption = "Source: Indego bike share"
+  ) +
+  plotTheme
+
+# Daily trip counts
+daily_trips_q1 <- indego_q1 %>%
+  group_by(date) %>%
+  summarize(trips = n())
+
+ggplot(daily_trips_q1, aes(x = date, y = trips)) +
   geom_line(color = "#3182bd", linewidth = 1) +
   geom_smooth(se = FALSE, color = "red", linetype = "dashed") +
   labs(
@@ -139,34 +186,65 @@ ggplot(daily_trips, aes(x = date, y = trips)) +
 
 ```{r time patterns}
 # Average trips by hour and day type
-hourly_patterns <- indego_q3 %>%
+hourly_patterns_q3 <- indego_q3 %>%
   group_by(hour, weekend) %>%
   summarize(avg_trips = n() / n_distinct(date)) %>%
   mutate(day_type = ifelse(weekend == 1, "Weekend", "Weekday"))
 
-ggplot(hourly_patterns, aes(x = hour, y = avg_trips, color = day_type)) +
+ggplot(hourly_patterns_q3, aes(x = hour, y = avg_trips, color = day_type)) +
   geom_line(linewidth = 1.2) +
   scale_color_manual(values = c("Weekday" = "#08519c", "Weekend" = "#6baed6")) +
   labs(
-    title = "Average Hourly Ridership Patterns",
+    title = "Average Hourly Ridership Patterns Q3",
     subtitle = "Clear commute patterns on weekdays",
     x = "Hour of Day",
     y = "Average Trips per Hour",
     color = "Day Type"
   ) +
   plotTheme
+
+hourly_patterns_q1 <- indego_q1 %>%
+  group_by(hour, weekend) %>%
+  summarize(avg_trips = n() / n_distinct(date)) %>%
+  mutate(day_type = ifelse(weekend == 1, "Weekend", "Weekday"))
+
+ggplot(hourly_patterns_q1, aes(x = hour, y = avg_trips, color = day_type)) +
+  geom_line(linewidth = 1.2) +
+  scale_color_manual(values = c("Weekday" = "#08519c", "Weekend" = "#6baed6")) +
+  labs(
+    title = "Average Hourly Ridership Patterns Q1",
+    subtitle = "Clear commute patterns on weekdays",
+    x = "Hour of Day",
+    y = "Average Trips per Hour",
+    color = "Day Type"
+  ) +
+  plotTheme
+
 ```
+
 ```{r top stations}
 # Most popular origin stations
-top_stations <- indego_q3 %>%
+top_stations_q3 <- indego_q3 %>%
   count(start_station, start_lat, start_lon, name = "trips") %>%
   arrange(desc(trips)) %>%
   head(20)
 
-kable(top_stations, 
-      caption = "Top 20 Indego Stations by Trip Origins",
+kable(top_stations_q3, 
+      caption = "Top 20 Indego Stations by Trip Origins Q3",
       format.args = list(big.mark = ",")) %>%
   kable_styling(bootstrap_options = c("striped", "hover"))
+
+top_stations_q1 <- indego_q1 %>%
+  count(start_station, start_lat, start_lon, name = "trips") %>%
+  arrange(desc(trips)) %>%
+  head(20)
+
+kable(top_stations_q1, 
+      caption = "Top 20 Indego Stations by Trip Origins Q1",
+      format.args = list(big.mark = ",")) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+
+
 ```
 
 ```{r census data}
@@ -253,7 +331,15 @@ stations_for_map <- indego_q3 %>%
   mutate(has_census = !is.na(Med_Inc))
 
 # Add back to trip data
-indego_census <- indego_q3 %>%
+indego_census_q3 <- indego_q3 %>%
+  left_join(
+    stations_census %>% 
+      select(start_station, Med_Inc, Percent_Taking_Transit, 
+             Percent_White, Total_Pop),
+    by = "start_station"
+  )
+
+indego_census_q1 <- indego_q1 %>%
   left_join(
     stations_census %>% 
       select(start_station, Med_Inc, Percent_Taking_Transit, 
@@ -274,7 +360,7 @@ stations_for_map <- indego_q3 %>%
 
 # Create the map showing problem stations
 ggplot() +
-  geom_sf(data = philly_census, aes(fill = Med_Inc), color = "white", size = 0.1) +
+  geom_sf(data = philly_census, aes(fill = Med_Inc), color = "white", size = 0.05) +
   scale_fill_viridis(
     option = "viridis",
     name = "Median\nIncome",
@@ -320,15 +406,15 @@ indego_census <- indego_q3 %>%
 
 ```{r weather}
 # Get weather from Philadelphia International Airport (KPHL)
-# This covers Q1 2025: January 1 - March 31
-weather_data <- riem_measures(
+# This covers Q3 2025: July 1 - September 3o
+weather_data_q3 <- riem_measures(
   station = "PHL",  # Philadelphia International Airport
   date_start = "2025-07-01",
   date_end = "2025-09-30"
 )
 
 # Process weather data
-weather_processed <- weather_data %>%
+weather_processed_q3 <- weather_data_q3 %>%
   mutate(
     interval60 = floor_date(valid, unit = "hour"),
     Temperature = tmpf,  # Temperature in Fahrenheit
@@ -339,19 +425,45 @@ weather_processed <- weather_data %>%
   distinct(interval60, .keep_all = TRUE)
 
 # Check for missing hours and interpolate if needed
-weather_complete <- weather_processed %>%
+weather_complete_q3 <- weather_processed_q3 %>%
   complete(interval60 = seq(min(interval60), max(interval60), by = "hour")) %>%
   fill(Temperature, Precipitation, Wind_Speed, .direction = "down")
 
 # Look at the weather
-summary(weather_complete %>% select(Temperature, Precipitation, Wind_Speed))
+summary(weather_complete_q3 %>% select(Temperature, Precipitation, Wind_Speed))
+
+# This covers Q1 2025: January 1 - March 31
+weather_data_q1 <- riem_measures(
+  station = "PHL",  # Philadelphia International Airport
+  date_start = "2025-01-01",
+  date_end = "2025-03-31"
+)
+
+# Process weather data
+weather_processed_q1 <- weather_data_q1 %>%
+  mutate(
+    interval60 = floor_date(valid, unit = "hour"),
+    Temperature = tmpf,  # Temperature in Fahrenheit
+    Precipitation = ifelse(is.na(p01i), 0, p01i),  # Hourly precip in inches
+    Wind_Speed = sknt  # Wind speed in knots
+  ) %>%
+  select(interval60, Temperature, Precipitation, Wind_Speed) %>%
+  distinct(interval60, .keep_all = TRUE)
+
+# Check for missing hours and interpolate if needed
+weather_complete_q1 <- weather_processed_q1 %>%
+  complete(interval60 = seq(min(interval60), max(interval60), by = "hour")) %>%
+  fill(Temperature, Precipitation, Wind_Speed, .direction = "down")
+
+# Look at the weather
+summary(weather_complete_q1 %>% select(Temperature, Precipitation, Wind_Speed))
 ```
 
 ```{r visualize weather}
 #| message: false
 #| warning: false
 #| 
-ggplot(weather_complete, aes(x = interval60, y = Temperature)) +
+ggplot(weather_complete_q3, aes(x = interval60, y = Temperature)) +
   geom_line(color = "#3182bd", alpha = 0.7) +
   geom_smooth(se = FALSE, color = "red") +
   labs(
@@ -361,6 +473,18 @@ ggplot(weather_complete, aes(x = interval60, y = Temperature)) +
     y = "Temperature (°F)"
   ) +
   plotTheme
+
+ggplot(weather_complete_q1, aes(x = interval60, y = Temperature)) +
+  geom_line(color = "#3182bd", alpha = 0.7) +
+  geom_smooth(se = FALSE, color = "red") +
+  labs(
+    title = "Philadelphia Temperature - Q1 2025",
+    subtitle = "Winter to early spring transition",
+    x = "Date",
+    y = "Temperature (°F)"
+  ) +
+  plotTheme
+
 ```
 
 ```{r aggregate data}
@@ -368,51 +492,88 @@ ggplot(weather_complete, aes(x = interval60, y = Temperature)) +
 #| warning: false
 
 # Count trips by station-hour
-trips_panel <- indego_census %>%
+trips_panel_q3 <- indego_census_q3 %>%
+  group_by(interval60, start_station, start_lat, start_lon,
+           Med_Inc, Percent_Taking_Transit, Percent_White, Total_Pop) %>%
+  summarize(Trip_Count = n()) %>%
+  ungroup()
+
+trips_panel_q1 <- indego_census_q1 %>%
   group_by(interval60, start_station, start_lat, start_lon,
            Med_Inc, Percent_Taking_Transit, Percent_White, Total_Pop) %>%
   summarize(Trip_Count = n()) %>%
   ungroup()
 
 # How many station-hour observations?
-nrow(trips_panel)
+nrow(trips_panel_q3)
 
 # How many unique stations?
-length(unique(trips_panel$start_station))
+length(unique(trips_panel_q3$start_station))
 
 # How many unique hours?
-length(unique(trips_panel$interval60))
+length(unique(trips_panel_q3$interval60))
 
-hist(trips_panel$Trip_Count)
+hist(trips_panel_q3$Trip_Count)
 ```
 
 ```{r complete panel}
 # Calculate expected panel size
-n_stations <- length(unique(trips_panel$start_station))
-n_hours <- length(unique(trips_panel$interval60))
-expected_rows <- n_stations * n_hours
+n_stations_q1 <- length(unique(trips_panel_q1$start_station))
+n_hours_q1 <- length(unique(trips_panel_q1$interval60))
+expected_rows_q1 <- n_stations_q1 * n_hours_q1
 
-cat("Expected panel rows:", format(expected_rows, big.mark = ","), "\n")
-cat("Current rows:", format(nrow(trips_panel), big.mark = ","), "\n")
-cat("Missing rows:", format(expected_rows - nrow(trips_panel), big.mark = ","), "\n")
+cat("Expected panel rows:", format(expected_rows_q1, big.mark = ","), "\n")
+cat("Current rows:", format(nrow(trips_panel_q1), big.mark = ","), "\n")
+cat("Missing rows:", format(expected_rows_q1 - nrow(trips_panel_q1), big.mark = ","), "\n")
 
-# Create complete panel
-study_panel <- expand_grid(
-  interval60 = unique(trips_panel$interval60),
-  start_station = unique(trips_panel$start_station)
+n_stations_q3 <- length(unique(trips_panel_q3$start_station))
+n_hours_q3 <- length(unique(trips_panel_q3$interval60))
+expected_rows_q3 <- n_stations_q3 * n_hours_q3
+
+cat("Expected panel rows:", format(expected_rows_q3, big.mark = ","), "\n")
+cat("Current rows:", format(nrow(trips_panel_q3), big.mark = ","), "\n")
+cat("Missing rows:", format(expected_rows_q3 - nrow(trips_panel_q3), big.mark = ","), "\n")
+
+# Create complete panel Q3
+study_panel_q3 <- expand_grid(
+  interval60 = unique(trips_panel_q3$interval60),
+  start_station = unique(trips_panel_q3$start_station)
 ) %>%
   # Join trip counts
-  left_join(trips_panel %>% 
+  left_join(trips_panel_q3 %>% 
               select(interval60, start_station, Trip_Count),
             by = c("interval60", "start_station")) %>%
   # Replace NA trip counts with 0
   mutate(Trip_Count = replace_na(Trip_Count, 0))
 
-glimpse(study_panel)
-hist(study_panel$Trip_Count)
+glimpse(study_panel_q3)
+hist(study_panel_q3$Trip_Count)
+
+# Create complete panel Q1
+study_panel_q1 <- expand_grid(
+  interval60 = unique(trips_panel_q1$interval60),
+  start_station = unique(trips_panel_q1$start_station)
+) %>%
+  left_join(trips_panel_q1 %>% 
+              select(interval60, start_station, Trip_Count),
+            by = c("interval60", "start_station")) %>%
+  mutate(Trip_Count = replace_na(Trip_Count, 0))
+
+glimpse(study_panel_q1)
+hist(study_panel_q1$Trip_Count)
 
 # Fill in station attributes (they're the same for all hours)
-station_attributes <- trips_panel %>%
+station_attributes_q3 <- trips_panel_q3 %>%
+  group_by(start_station) %>%
+  summarize(
+    start_lat = first(start_lat),
+    start_lon = first(start_lon),
+    Med_Inc = first(Med_Inc),
+    Percent_Taking_Transit = first(Percent_Taking_Transit),
+    Percent_White = first(Percent_White),
+    Total_Pop = first(Total_Pop)
+  )
+station_attributes_q1 <- trips_panel_q1 %>%
   group_by(start_station) %>%
   summarize(
     start_lat = first(start_lat),
@@ -423,19 +584,24 @@ station_attributes <- trips_panel %>%
     Total_Pop = first(Total_Pop)
   )
 
-glimpse(station_attributes)
+glimpse(station_attributes_q3)
 
-study_panel <- study_panel %>%
-  left_join(station_attributes, by = "start_station")
+study_panel_q1 <- study_panel_q1 %>%
+  left_join(station_attributes_q1, by = "start_station")
+study_panel_q3 <- study_panel_q3 %>%
+  left_join(station_attributes_q3, by = "start_station")
 
-glimpse(study_panel)
+glimpse(study_panel_q1)
+glimpse(study_panel_q3)
 
 # Verify we have complete panel
-cat("Complete panel rows:", format(nrow(study_panel), big.mark = ","), "\n")
+cat("Complete panel rows:", format(nrow(study_panel_q3), big.mark = ","), "\n")
+cat("Complete panel rows:", format(nrow(study_panel_q1), big.mark = ","), "\n")
+
 ```
 
 ```{r add time features}
-study_panel <- study_panel %>%
+study_panel_q3 <- study_panel_q3 %>%
   mutate(
     week = week(interval60),
     month = month(interval60, label = TRUE),
@@ -446,26 +612,62 @@ study_panel <- study_panel %>%
     rush_hour = ifelse(hour %in% c(7, 8, 9, 16, 17, 18), 1, 0)
   )
 
-glimpse(study_panel)
+glimpse(study_panel_q3)
+
+study_panel_q1 <- study_panel_q1 %>%
+  mutate(
+    week = week(interval60),
+    month = month(interval60, label = TRUE),
+    dotw = wday(interval60, label = TRUE),
+    hour = hour(interval60),
+    date = as.Date(interval60),
+    weekend = ifelse(dotw %in% c("Sat", "Sun"), 1, 0),
+    rush_hour = ifelse(hour %in% c(7, 8, 9, 16, 17, 18), 1, 0)
+  )
+
+glimpse(study_panel_q1)
 ```
 
 ```{r join weather}
-study_panel <- study_panel %>%
-  left_join(weather_complete, by = "interval60")
+study_panel_q3 <- study_panel_q3 %>%
+  left_join(weather_complete_q3, by = "interval60")
 
-glimpse(study_panel)
+glimpse(study_panel_q3)
+
+study_panel_q1 <- study_panel_q1 %>%
+  left_join(weather_complete_q1, by = "interval60")
+
+glimpse(study_panel_q1)
 
 # Check for missing values
-summary(study_panel %>% select(Trip_Count, Temperature, Precipitation))
+summary(study_panel_q3 %>% select(Trip_Count, Temperature, Precipitation))
+summary(study_panel_q1 %>% select(Trip_Count, Temperature, Precipitation))
+
 ```
 
 ```{r create lags}
 # Sort by station and time
-study_panel <- study_panel %>%
+study_panel_q3 <- study_panel_q3 %>%
   arrange(start_station, interval60)
 
 # Create lag variables WITHIN each station
-study_panel <- study_panel %>%
+study_panel_q3 <- study_panel_q3 %>%
+  group_by(start_station) %>%
+  mutate(
+    lag1Hour = lag(Trip_Count, 1),
+    lag2Hours = lag(Trip_Count, 2),
+    lag3Hours = lag(Trip_Count, 3),
+    lag12Hours = lag(Trip_Count, 12),
+    lag1day = lag(Trip_Count, 24)
+  ) %>%
+  ungroup()
+
+# Sort by station and time
+study_panel_q1 <- study_panel_q1 %>%
+  arrange(start_station, interval60)
+
+# Create lag variables WITHIN each station
+study_panel_q1 <- study_panel_q1 %>%
   group_by(start_station) %>%
   mutate(
     lag1Hour = lag(Trip_Count, 1),
@@ -477,16 +679,20 @@ study_panel <- study_panel %>%
   ungroup()
 
 # Remove rows with NA lags (first 24 hours for each station)
-study_panel_complete <- study_panel %>%
+study_panel_complete_q3 <- study_panel_q3 %>%
+  filter(!is.na(lag1day))
+study_panel_complete_q1 <- study_panel_q1 %>%
   filter(!is.na(lag1day))
 
-cat("Rows after removing NA lags:", format(nrow(study_panel_complete), big.mark = ","), "\n")
+cat("Rows after removing NA lags:", format(nrow(study_panel_complete_q1), big.mark = ","), "\n")
+cat("Rows after removing NA lags:", format(nrow(study_panel_complete_q3), big.mark = ","), "\n")
+
 ```
 
 ```{r lag visualizations}
 # Sample one station to visualize
-example_station <- study_panel_complete %>%
-  filter(start_station == first(start_station)) %>%
+example_station <- study_panel_complete_q3 %>%
+  filter(start_station == 3188) %>%
   head(168)  # One week
 
 # Plot actual vs lagged demand
@@ -511,129 +717,248 @@ ggplot(example_station, aes(x = interval60)) +
 
 ```{r temporal test train}
 # Split by week
-# Q3 has weeks  26-39c(Jul-Sep)
+# Q3 has weeks  26-39 (Jul-Sep)
 # Train on weeks 26-35 (Jul 1- early September)
 # Test on weeks 36-39 (rest of September)
 
+# Split by week
+# Q1 has weeks 1-13 (Jan-Mar)
+# Train on weeks 1-9 (Jan 1 - early March)
+# Test on weeks 10-13 (rest of March)
+
 # Which stations have trips in BOTH early and late periods?
-early_stations <- study_panel_complete %>%
+early_stations_q3 <- study_panel_complete_q3 %>%
   filter(week < 36) %>%
   filter(Trip_Count > 0) %>%
   distinct(start_station) %>%
   pull(start_station)
 
-late_stations <- study_panel_complete %>%
+late_stations_q3 <- study_panel_complete_q3 %>%
   filter(week >= 36) %>%
   filter(Trip_Count > 0) %>%
   distinct(start_station) %>%
   pull(start_station)
 
-# Keep only stations that appear in BOTH periods
-common_stations <- intersect(early_stations, late_stations)
+early_stations_q1 <- study_panel_complete_q1 %>%
+  filter(week < 10) %>%
+  filter(Trip_Count > 0) %>%
+  distinct(start_station) %>%
+  pull(start_station)
 
+late_stations_q1 <- study_panel_complete_q1 %>%
+  filter(week >= 10) %>%
+  filter(Trip_Count > 0) %>%
+  distinct(start_station) %>%
+  pull(start_station)
+
+# Keep only stations that appear in BOTH periods
+common_stations_q3 <- intersect(early_stations_q3, late_stations_q3)
+common_stations_q1 <- intersect(early_stations_q1, late_stations_q1)
 
 # Filter panel to only common stations
-study_panel_complete <- study_panel_complete %>%
-  filter(start_station %in% common_stations)
+study_panel_complete_q3 <- study_panel_complete_q3 %>%
+  filter(start_station %in% common_stations_q3)
 
-# NOW create train/test split
-train <- study_panel_complete %>%
+study_panel_complete_q1 <- study_panel_complete_q1 %>%
+  filter(start_station %in% common_stations_q1)
+
+# Create train/test split
+train_q3 <- study_panel_complete_q3 %>%
   filter(week < 36)
 
-test <- study_panel_complete %>%
+test_q3 <- study_panel_complete_q3 %>%
   filter(week >= 36)
 
-cat("Training observations:", format(nrow(train), big.mark = ","), "\n")
-cat("Testing observations:", format(nrow(test), big.mark = ","), "\n")
-cat("Training date range:", min(train$date), "to", max(train$date), "\n")
-cat("Testing date range:", min(test$date), "to", max(test$date), "\n")
+train_q1 <- study_panel_complete_q1 %>%
+  filter(week < 10)
+
+test_q1 <- study_panel_complete_q1 %>%
+  filter(week >= 10)
+
+# Convert start_station to factor in training data first,
+# then align test levels to training levels so predict() doesn't error
+# Convert to factor FIRST
+train_q3 <- train_q3 %>%
+  mutate(start_station = factor(start_station))
+
+train_q1 <- train_q1 %>%
+  mutate(start_station = factor(start_station))
+
+train_q3 <- train_q3 %>% droplevels()
+train_q1 <- train_q1 %>% droplevels()
+
+cat("Training observations:", format(nrow(train_q3), big.mark = ","), "\n")
+cat("Testing observations:", format(nrow(test_q3), big.mark = ","), "\n")
+cat("Training date range:", min(train_q3$date), "to", max(train_q3$date), "\n")
+cat("Testing date range:", min(test_q3$date), "to", max(test_q3$date), "\n")
+
+cat("Training observations:", format(nrow(train_q1), big.mark = ","), "\n")
+cat("Testing observations:", format(nrow(test_q1), big.mark = ","), "\n")
+cat("Training date range:", min(train_q1$date), "to", max(train_q1$date), "\n")
+cat("Testing date range:", min(test_q1$date), "to", max(test_q1$date), "\n")
+
+
 ```
+
 ```{r model 1}
 
 # Create day of week factor with treatment (dummy) coding
-train <- train %>%
+train_q3 <- train_q3 %>%
   mutate(dotw_simple = factor(dotw, levels = c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")))
 
 # Set contrasts to treatment coding (dummy variables)
-contrasts(train$dotw_simple) <- contr.treatment(7)
+contrasts(train_q3$dotw_simple) <- contr.treatment(7)
 
 # Now run the model
-model1 <- lm(
+model1_q3 <- lm(
   Trip_Count ~ as.factor(hour) + dotw_simple + Temperature + Precipitation,
-  data = train
+  data = train_q3
 )
 
-summary(model1)
+summary(model1_q3)
+
+# Create day of week factor with treatment (dummy) coding
+train_q1 <- train_q1 %>%
+  mutate(dotw_simple = factor(dotw, levels = c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")))
+
+# Set contrasts to treatment coding (dummy variables)
+contrasts(train_q1$dotw_simple) <- contr.treatment(7)
+
+# Now run the model
+model1_q1 <- lm(
+  Trip_Count ~ as.factor(hour) + dotw_simple + Temperature + Precipitation,
+  data = train_q1
+)
+
+summary(model1_q1)
 ```
+
 ```{r model 2}
-model2 <- lm(
+model2_q3 <- lm(
   Trip_Count ~ as.factor(hour) + dotw_simple + Temperature + Precipitation +
     lag1Hour + lag3Hours + lag1day,
-  data = train
+  data = train_q3
 )
+summary(model2_q3)
 
-summary(model2)
+model2_q1 <- lm(
+  Trip_Count ~ as.factor(hour) + dotw_simple + Temperature + Precipitation +
+    lag1Hour + lag3Hours + lag1day,
+  data = train_q1
+)
+summary(model2_q1)
+
+
 ```
 
 ```{r model 3}
-model3 <- lm(
+model3_q3 <- lm(
   Trip_Count ~ as.factor(hour) + dotw_simple + Temperature + Precipitation +
     lag1Hour + lag3Hours + lag1day +
     Med_Inc + Percent_Taking_Transit + Percent_White,
-  data = train
+  data = train_q3
 )
 
-summary(model3)
+summary(model3_q3)
+
+model3_q1 <- lm(
+  Trip_Count ~ as.factor(hour) + dotw_simple + Temperature + Precipitation +
+    lag1Hour + lag3Hours + lag1day +
+    Med_Inc + Percent_Taking_Transit + Percent_White,
+  data = train_q1
+)
+
+summary(model3_q1)
+
+
 ```
+
 ```{r model 4}
-model4 <- lm(
+model4_q3 <- lm(
   Trip_Count ~ as.factor(hour) + dotw_simple + Temperature + Precipitation +
     lag1Hour + lag3Hours + lag1day +
     Med_Inc + Percent_Taking_Transit + Percent_White +
-    as.factor(start_station),
-  data = train
+    start_station,
+  data = train_q3
 )
+cat("Model 4 R-squared:", summary(model4_q3)$r.squared, "\n")
+cat("Model 4 Adj R-squared:", summary(model4_q3)$adj.r.squared, "\n")
 
-# Summary too long with all station dummies, just show key metrics
-cat("Model 4 R-squared:", summary(model4)$r.squared, "\n")
-cat("Model 4 Adj R-squared:", summary(model4)$adj.r.squared, "\n")
+model4_q1 <- lm(
+  Trip_Count ~ as.factor(hour) + dotw_simple + Temperature + Precipitation +
+    lag1Hour + lag3Hours + lag1day +
+    Med_Inc + Percent_Taking_Transit + Percent_White +
+    start_station,
+  data = train_q1
+)
+cat("Model 4 R-squared:", summary(model4_q1)$r.squared, "\n")
+cat("Model 4 Adj R-squared:", summary(model4_q1)$adj.r.squared, "\n")
+
+
+
 ```
 
 ```{r model 5}
-model5 <- lm(
+model5_q3 <- lm(
   Trip_Count ~ as.factor(hour) + dotw_simple + Temperature + Precipitation +
     lag1Hour + lag3Hours + lag1day + rush_hour + as.factor(month) +
     Med_Inc + Percent_Taking_Transit + Percent_White +
-    as.factor(start_station) +
+    start_station +
     rush_hour * weekend,  # Rush hour effects different on weekends
-  data = train
+  data = train_q3
 )
 
-cat("Model 5 R-squared:", summary(model5)$r.squared, "\n")
-cat("Model 5 Adj R-squared:", summary(model5)$adj.r.squared, "\n")
+cat("Model 5 R-squared:", summary(model5_q3)$r.squared, "\n")
+cat("Model 5 Adj R-squared:", summary(model5_q3)$adj.r.squared, "\n")
+
+model5_q1 <- lm(
+  Trip_Count ~ as.factor(hour) + dotw_simple + Temperature + Precipitation +
+    lag1Hour + lag3Hours + lag1day + rush_hour + as.factor(month) +
+    Med_Inc + Percent_Taking_Transit + Percent_White +
+    start_station +
+    rush_hour * weekend,  # Rush hour effects different on weekends
+  data = train_q1
+)
+
+cat("Model 5 R-squared:", summary(model5_q1)$r.squared, "\n")
+cat("Model 5 Adj R-squared:", summary(model5_q1)$adj.r.squared, "\n")
+
 ```
 
 ```{r mae}
 # Get predictions on test set
 
 # Create day of week factor with treatment (dummy) coding
-test <- test %>%
+test_q3 <- test_q3 %>%
   mutate(dotw_simple = factor(dotw, levels = c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")))
 
 # Set contrasts to treatment coding (dummy variables)
-contrasts(test$dotw_simple) <- contr.treatment(7)
+contrasts(test_q3$dotw_simple) <- contr.treatment(7)
 
-test <- test %>%
+test_q3$start_station <- factor(
+  test_q3$start_station,
+  levels = model4_q3$xlevels$start_station
+)
+
+test_q1$start_station <- factor(
+  test_q1$start_station,
+  levels = model4_q1$xlevels$start_station
+)
+
+test_q3 <- test_q3 %>% droplevels()
+test_q1 <- test_q1 %>% droplevels()
+
+test_q3 <- test_q3 %>%
   mutate(
-    pred1 = predict(model1, newdata = test),
-    pred2 = predict(model2, newdata = test),
-    pred3 = predict(model3, newdata = test),
-    pred4 = predict(model4, newdata = test),
-    pred5 = predict(model5, newdata = test)
+    pred1 = predict(model1_q3, newdata = test_q3),
+    pred2 = predict(model2_q3, newdata = test_q3),
+    pred3 = predict(model3_q3, newdata = test_q3),
+    pred4 = predict(model4_q3, newdata = test_q3),
+    pred5 = predict(model5_q3, newdata = test_q3)
   )
 
 # Calculate MAE for each model
-mae_results <- data.frame(
+mae_results_q3 <- data.frame(
   Model = c(
     "1. Time + Weather",
     "2. + Temporal Lags",
@@ -642,27 +967,81 @@ mae_results <- data.frame(
     "5. + Rush Hour Interaction"
   ),
   MAE = c(
-    mean(abs(test$Trip_Count - test$pred1), na.rm = TRUE),
-    mean(abs(test$Trip_Count - test$pred2), na.rm = TRUE),
-    mean(abs(test$Trip_Count - test$pred3), na.rm = TRUE),
-    mean(abs(test$Trip_Count - test$pred4), na.rm = TRUE),
-    mean(abs(test$Trip_Count - test$pred5), na.rm = TRUE)
+    mean(abs(test_q3$Trip_Count - test_q3$pred1), na.rm = TRUE),
+    mean(abs(test_q3$Trip_Count - test_q3$pred2), na.rm = TRUE),
+    mean(abs(test_q3$Trip_Count - test_q3$pred3), na.rm = TRUE),
+    mean(abs(test_q3$Trip_Count - test_q3$pred4), na.rm = TRUE),
+    mean(abs(test_q3$Trip_Count - test_q3$pred5), na.rm = TRUE)
   )
 )
 
-kable(mae_results, 
+kable(mae_results_q3, 
       digits = 2,
-      caption = "Mean Absolute Error by Model (Test Set)",
+      caption = "Mean Absolute Error by Model, Q3 (Test Set)",
       col.names = c("Model", "MAE (trips)")) %>%
   kable_styling(bootstrap_options = c("striped", "hover"))
+
+
+# Create day of week factor with treatment (dummy) coding
+test_q1 <- test_q1 %>%
+  mutate(dotw_simple = factor(dotw, levels = c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")))
+
+# Set contrasts to treatment coding (dummy variables)
+contrasts(test_q1$dotw_simple) <- contr.treatment(7)
+
+test_q1 <- test_q1 %>%
+  mutate(
+    pred1 = predict(model1_q1, newdata = test_q1),
+    pred2 = predict(model2_q1, newdata = test_q1),
+    pred3 = predict(model3_q1, newdata = test_q1),
+    pred4 = predict(model4_q1, newdata = test_q1),
+    pred5 = predict(model5_q1, newdata = test_q1)
+  )
+
+# Calculate MAE for each model
+mae_results_q1 <- data.frame(
+  Model = c(
+    "1. Time + Weather",
+    "2. + Temporal Lags",
+    "3. + Demographics",
+    "4. + Station FE",
+    "5. + Rush Hour Interaction"
+  ),
+  MAE = c(
+    mean(abs(test_q1$Trip_Count - test_q1$pred1), na.rm = TRUE),
+    mean(abs(test_q1$Trip_Count - test_q1$pred2), na.rm = TRUE),
+    mean(abs(test_q1$Trip_Count - test_q1$pred3), na.rm = TRUE),
+    mean(abs(test_q1$Trip_Count - test_q1$pred4), na.rm = TRUE),
+    mean(abs(test_q1$Trip_Count - test_q1$pred5), na.rm = TRUE)
+  )
+)
+
+kable(mae_results_q1, 
+      digits = 2,
+      caption = "Mean Absolute Error by Model, q1 (Test Set)",
+      col.names = c("Model", "MAE (trips)")) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+
 ```
 
 ```{r visualize comparisons}
-ggplot(mae_results, aes(x = reorder(Model, -MAE), y = MAE)) +
+ggplot(mae_results_q3, aes(x = reorder(Model, -MAE), y = MAE)) +
   geom_col(fill = "#3182bd", alpha = 0.8) +
   geom_text(aes(label = round(MAE, 2)), vjust = -0.5) +
   labs(
-    title = "Model Performance Comparison",
+    title = "Model Performance Comparison Q3",
+    subtitle = "Lower MAE = Better Predictions",
+    x = "Model",
+    y = "Mean Absolute Error (trips)"
+  ) +
+  plotTheme +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(mae_results_q1, aes(x = reorder(Model, -MAE), y = MAE)) +
+  geom_col(fill = "#3182bd", alpha = 0.8) +
+  geom_text(aes(label = round(MAE, 2)), vjust = -0.5) +
+  labs(
+    title = "Model Performance Comparison Q1",
     subtitle = "Lower MAE = Better Predictions",
     x = "Model",
     y = "Mean Absolute Error (trips)"
@@ -675,7 +1054,7 @@ ggplot(mae_results, aes(x = reorder(Model, -MAE), y = MAE)) +
 #| message: false
 #| warning: false
 
-test <- test %>%
+test_q3 <- test_q3 %>%
   mutate(
     error = Trip_Count - pred2,
     abs_error = abs(error),
@@ -689,24 +1068,53 @@ test <- test %>%
   )
 
 # Scatter plot by time and day type
-ggplot(test, aes(x = Trip_Count, y = pred2)) +
+ggplot(test_q3, aes(x = Trip_Count, y = pred2)) +
   geom_point(alpha = 0.2, color = "#3182bd") +
   geom_abline(slope = 1, intercept = 0, color = "red", linewidth = 1) +
   geom_smooth(method = "lm", se = FALSE, color = "darkgreen") +
   facet_grid(weekend ~ time_of_day) +
   labs(
-    title = "Observed vs. Predicted Bike Trips",
-    subtitle = "Model 2 performance by time period",
+    title = "Observed vs. Predicted Bike Trips Q3",
+    subtitle = "Model 2 performance by time period Q3",
     x = "Observed Trips",
     y = "Predicted Trips",
     caption = "Red line = perfect predictions; Green line = actual model fit"
   ) +
   plotTheme
+
+test_q1 <- test_q1 %>%
+  mutate(
+    error = Trip_Count - pred2,
+    abs_error = abs(error),
+    time_of_day = case_when(
+      hour < 7 ~ "Overnight",
+      hour >= 7 & hour < 10 ~ "AM Rush",
+      hour >= 10 & hour < 15 ~ "Mid-Day",
+      hour >= 15 & hour <= 18 ~ "PM Rush",
+      hour > 18 ~ "Evening"
+    )
+  )
+
+# Scatter plot by time and day type
+ggplot(test_q1, aes(x = Trip_Count, y = pred2)) +
+  geom_point(alpha = 0.2, color = "#3182bd") +
+  geom_abline(slope = 1, intercept = 0, color = "red", linewidth = 1) +
+  geom_smooth(method = "lm", se = FALSE, color = "darkgreen") +
+  facet_grid(weekend ~ time_of_day) +
+  labs(
+    title = "Observed vs. Predicted Bike Trips q1",
+    subtitle = "Model 2 performance by time period q1",
+    x = "Observed Trips",
+    y = "Predicted Trips",
+    caption = "Red line = perfect predictions; Green line = actual model fit"
+  ) +
+  plotTheme
+
 ```
 
 ```{r spatial errors}
 # Calculate MAE by station
-station_errors <- test %>%
+station_errors_q3 <- test_q3 %>%
   group_by(start_station, start_lat, start_lon) %>%
   summarize(
     MAE = mean(abs_error, na.rm = TRUE),
@@ -715,10 +1123,30 @@ station_errors <- test %>%
   ) %>%
   filter(!is.na(start_lat), !is.na(start_lon))
 
+station_errors_q1 <- test_q1 %>%
+  group_by(start_station, start_lat, start_lon) %>%
+  summarize(
+    MAE = mean(abs_error, na.rm = TRUE),
+    avg_demand = mean(Trip_Count, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  filter(!is.na(start_lat), !is.na(start_lon))
+
+
 ## Create Two Maps Side-by-Side with Proper Legends (sorry these maps are ugly)
 
 # Calculate station errors
-station_errors <- test %>%
+station_errors_q3 <- test_q3 %>%
+  filter(!is.na(pred2)) %>%
+  group_by(start_station, start_lat, start_lon) %>%
+  summarize(
+    MAE = mean(abs(Trip_Count - pred2), na.rm = TRUE),
+    avg_demand = mean(Trip_Count, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  filter(!is.na(start_lat), !is.na(start_lon))
+
+station_errors_q1 <- test_q1 %>%
   filter(!is.na(pred2)) %>%
   group_by(start_station, start_lat, start_lon) %>%
   summarize(
@@ -729,10 +1157,10 @@ station_errors <- test %>%
   filter(!is.na(start_lat), !is.na(start_lon))
 
 # Map 1: Prediction Errors
-p1 <- ggplot() +
+p1_q3 <- ggplot() +
   geom_sf(data = philly_census, fill = "grey95", color = "white", size = 0.2) +
   geom_point(
-    data = station_errors,
+    data = station_errors_q3,
     aes(x = start_lon, y = start_lat, color = MAE),
     size = 3.5,
     alpha = 0.7
@@ -744,7 +1172,39 @@ p1 <- ggplot() +
     breaks = c(0.5, 1.0, 1.5),  # Fewer, cleaner breaks
     labels = c("0.5", "1.0", "1.5")
   ) +
-  labs(title = "Prediction Errors",
+  labs(title = "Prediction Errors Q3",
+       subtitle = "Higher in Center City") +
+  mapTheme +
+  theme(
+    legend.position = "right",
+    legend.title = element_text(size = 10, face = "bold"),
+    legend.text = element_text(size = 9),
+    plot.title = element_text(size = 14, face = "bold"),
+    plot.subtitle = element_text(size = 10)
+  ) +
+  guides(color = guide_colorbar(
+    barwidth = 1.5,
+    barheight = 12,
+    title.position = "top",
+    title.hjust = 0.5
+  ))
+
+p1_q1 <- ggplot() +
+  geom_sf(data = philly_census, fill = "grey95", color = "white", size = 0.2) +
+  geom_point(
+    data = station_errors_q1,
+    aes(x = start_lon, y = start_lat, color = MAE),
+    size = 3.5,
+    alpha = 0.7
+  ) +
+  scale_color_viridis(
+    option = "plasma",
+    name = "MAE\n(trips)",
+    direction = -1,
+    breaks = c(0.5, 1.0, 1.5),  # Fewer, cleaner breaks
+    labels = c("0.5", "1.0", "1.5")
+  ) +
+  labs(title = "Prediction Errors Q1",
        subtitle = "Higher in Center City") +
   mapTheme +
   theme(
@@ -762,10 +1222,10 @@ p1 <- ggplot() +
   ))
 
 # Map 2: Average Demand
-p2 <- ggplot() +
+p2_q3 <- ggplot() +
   geom_sf(data = philly_census, fill = "grey95", color = "white", size = 0.2) +
   geom_point(
-    data = station_errors,
+    data = station_errors_q3,
     aes(x = start_lon, y = start_lat, color = avg_demand),
     size = 3.5,
     alpha = 0.7
@@ -777,7 +1237,39 @@ p2 <- ggplot() +
     breaks = c(0.5, 1.0, 1.5, 2.0, 2.5),  # Clear breaks
     labels = c("0.5", "1.0", "1.5", "2.0", "2.5")
   ) +
-  labs(title = "Average Demand",
+  labs(title = "Average Demand Q3",
+       subtitle = "Trips per station-hour") +
+  mapTheme +
+  theme(
+    legend.position = "right",
+    legend.title = element_text(size = 10, face = "bold"),
+    legend.text = element_text(size = 9),
+    plot.title = element_text(size = 14, face = "bold"),
+    plot.subtitle = element_text(size = 10)
+  ) +
+  guides(color = guide_colorbar(
+    barwidth = 1.5,
+    barheight = 12,
+    title.position = "top",
+    title.hjust = 0.5
+  ))
+
+p2_q1 <- ggplot() +
+  geom_sf(data = philly_census, fill = "grey95", color = "white", size = 0.2) +
+  geom_point(
+    data = station_errors_q1,
+    aes(x = start_lon, y = start_lat, color = avg_demand),
+    size = 3.5,
+    alpha = 0.7
+  ) +
+  scale_color_viridis(
+    option = "viridis",
+    name = "Avg\nDemand",
+    direction = -1,
+    breaks = c(0.5, 1.0, 1.5, 2.0, 2.5),  # Clear breaks
+    labels = c("0.5", "1.0", "1.5", "2.0", "2.5")
+  ) +
+  labs(title = "Average Demand q1",
        subtitle = "Trips per station-hour") +
   mapTheme +
   theme(
@@ -796,76 +1288,14 @@ p2 <- ggplot() +
 
 
 
-
-# Map 1: Prediction Errors
-p1 <- ggplot() +
-  geom_sf(data = philly_census, fill = "grey95", color = "white", size = 0.1) +
-  geom_point(
-    data = station_errors,
-    aes(x = start_lon, y = start_lat, color = MAE),
-    size = 3.5,
-    alpha = 0.7
-  ) +
-  scale_color_viridis(
-    option = "plasma",
-    name = "MAE (trips)",
-    direction = -1,
-    breaks = c(0.5, 1.0, 1.5),
-    labels = c("0.5", "1.0", "1.5")
-  ) +
-  labs(title = "Prediction Errors") +
-  mapTheme +
-  theme(
-    legend.position = "bottom",
-    legend.title = element_text(size = 10, face = "bold"),
-    legend.text = element_text(size = 9),
-    plot.title = element_text(size = 14, face = "bold", hjust = 0.5)
-  ) +
-  guides(color = guide_colorbar(
-    barwidth = 12,
-    barheight = 1,
-    title.position = "top",
-    title.hjust = 0.5
-  ))
-
-# Map 2: Average Demand  
-p2 <- ggplot() +
-  geom_sf(data = philly_census, fill = "grey95", color = "white", size = 0.1) +
-  geom_point(
-    data = station_errors,
-    aes(x = start_lon, y = start_lat, color = avg_demand),
-    size = 3.5,
-    alpha = 0.7
-  ) +
-  scale_color_viridis(
-    option = "viridis",
-    name = "Avg Demand (trips/hour)",
-    direction = -1,
-    breaks = c(0.5, 1.0, 1.5, 2.0, 2.5),
-    labels = c("0.5", "1.0", "1.5", "2.0", "2.5")
-  ) +
-  labs(title = "Average Demand") +
-  mapTheme +
-  theme(
-    legend.position = "bottom",
-    legend.title = element_text(size = 10, face = "bold"),
-    legend.text = element_text(size = 9),
-    plot.title = element_text(size = 14, face = "bold", hjust = 0.5)
-  ) +
-  guides(color = guide_colorbar(
-    barwidth = 12,
-    barheight = 1,
-    title.position = "top",
-    title.hjust = 0.5
-  ))
-
 # Combine
-(p1 | p2)
+(p1_q3 | p2_q3)
+(p1_q1 | p2_q1)
 ```
 
 ```{r temporal errors}
 # MAE by time of day and day type
-temporal_errors <- test %>%
+temporal_errors_q3 <- test_q3 %>%
   group_by(time_of_day, weekend) %>%
   summarize(
     MAE = mean(abs_error, na.rm = TRUE),
@@ -873,11 +1303,32 @@ temporal_errors <- test %>%
   ) %>%
   mutate(day_type = ifelse(weekend == 1, "Weekend", "Weekday"))
 
-ggplot(temporal_errors, aes(x = time_of_day, y = MAE, fill = day_type)) +
+ggplot(temporal_errors_q3, aes(x = time_of_day, y = MAE, fill = day_type)) +
   geom_col(position = "dodge") +
   scale_fill_manual(values = c("Weekday" = "#08519c", "Weekend" = "#6baed6")) +
   labs(
-    title = "Prediction Errors by Time Period",
+    title = "Prediction Errors by Time Period Q3",
+    subtitle = "When is the model struggling most?",
+    x = "Time of Day",
+    y = "Mean Absolute Error (trips)",
+    fill = "Day Type"
+  ) +
+  plotTheme +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+temporal_errors_q1 <- test_q1 %>%
+  group_by(time_of_day, weekend) %>%
+  summarize(
+    MAE = mean(abs_error, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(day_type = ifelse(weekend == 1, "Weekend", "Weekday"))
+
+ggplot(temporal_errors_q1, aes(x = time_of_day, y = MAE, fill = day_type)) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("Weekday" = "#08519c", "Weekend" = "#6baed6")) +
+  labs(
+    title = "Prediction Errors by Time Period Q1",
     subtitle = "When is the model struggling most?",
     x = "Time of Day",
     y = "Mean Absolute Error (trips)",
@@ -892,34 +1343,127 @@ ggplot(temporal_errors, aes(x = time_of_day, y = MAE, fill = day_type)) +
 #| warning: false
 
 # Join demographic data to station errors
-station_errors_demo <- station_errors %>%
+
+station_errors_demo_q3 <- station_errors_q3 %>%
+  mutate(start_station = as.character(start_station)) %>%
   left_join(
-    station_attributes %>% select(start_station, Med_Inc, Percent_Taking_Transit, Percent_White),
+    station_attributes_q3 %>%
+      mutate(start_station = as.character(start_station)) %>%
+      select(start_station, Med_Inc, Percent_Taking_Transit, Percent_White),
     by = "start_station"
   ) %>%
   filter(!is.na(Med_Inc))
 
+station_errors_demo_q1 <- station_errors_q1 %>%
+  mutate(start_station = as.character(start_station)) %>%
+  left_join(
+    station_attributes_q1 %>%
+      mutate(start_station = as.character(start_station)) %>%
+      select(start_station, Med_Inc, Percent_Taking_Transit, Percent_White),
+    by = "start_station"
+  ) %>%
+  filter(!is.na(Med_Inc))
+
+
 # Create plots
-p1 <- ggplot(station_errors_demo, aes(x = Med_Inc, y = MAE)) +
+p1_q3 <- ggplot(station_errors_demo_q3, aes(x = Med_Inc, y = MAE)) +
   geom_point(alpha = 0.5, color = "#3182bd") +
   geom_smooth(method = "lm", se = FALSE, color = "red") +
   scale_x_continuous(labels = scales::dollar) +
-  labs(title = "Errors vs. Median Income", x = "Median Income", y = "MAE") +
+  labs(title = "Errors vs. Median Income Q3", x = "Median Income", y = "MAE") +
   plotTheme
 
-p2 <- ggplot(station_errors_demo, aes(x = Percent_Taking_Transit, y = MAE)) +
+p2_q3 <- ggplot(station_errors_demo_q3, aes(x = Percent_Taking_Transit, y = MAE)) +
   geom_point(alpha = 0.5, color = "#3182bd") +
   geom_smooth(method = "lm", se = FALSE, color = "red") +
-  labs(title = "Errors vs. Transit Usage", x = "% Taking Transit", y = "MAE") +
+  labs(title = "Errors vs. Transit Usage Q3", x = "% Taking Transit", y = "MAE") +
   plotTheme
 
-p3 <- ggplot(station_errors_demo, aes(x = Percent_White, y = MAE)) +
+p3_q3 <- ggplot(station_errors_demo_q3, aes(x = Percent_White, y = MAE)) +
   geom_point(alpha = 0.5, color = "#3182bd") +
   geom_smooth(method = "lm", se = FALSE, color = "red") +
-  labs(title = "Errors vs. Race", x = "% White", y = "MAE") +
+  labs(title = "Errors vs. Race Q3", x = "% White", y = "MAE") +
   plotTheme
 
-(p1 | p2) / (p3 | plot_spacer())
+(p1_q3 | p2_q3) / (p3_q3 | plot_spacer())
+
+p1_q1 <- ggplot(station_errors_demo_q1, aes(x = Med_Inc, y = MAE)) +
+  geom_point(alpha = 0.5, color = "#3182bd") +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  scale_x_continuous(labels = scales::dollar) +
+  labs(title = "Errors vs. Median Income q1", x = "Median Income", y = "MAE") +
+  plotTheme
+
+p2_q1 <- ggplot(station_errors_demo_q1, aes(x = Percent_Taking_Transit, y = MAE)) +
+  geom_point(alpha = 0.5, color = "#3182bd") +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  labs(title = "Errors vs. Transit Usage q1", x = "% Taking Transit", y = "MAE") +
+  plotTheme
+
+p3_q1 <- ggplot(station_errors_demo_q1, aes(x = Percent_White, y = MAE)) +
+  geom_point(alpha = 0.5, color = "#3182bd") +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  labs(title = "Errors vs. Race q1", x = "% White", y = "MAE") +
+  plotTheme
+
+(p1_q1 | p2_q1) / (p3_q1 | plot_spacer())
+
 ```
 
+Potential features to consider:
 
+Temporal features:
+
+Holiday indicators (Memorial Day, July 4th, Labor Day)
+
+School calendar (Penn, Drexel, Temple in session?)
+
+Special events (concerts, sports games, conventions)
+
+Day of month (payday effects?)
+
+Weather features:
+
+Feels-like temperature (wind chill/heat index)
+
+"Perfect biking weather" indicator (60-75°F, no rain)
+
+Precipitation forecast (not just current)
+
+Weekend + nice weather interaction
+
+Spatial features:
+
+Distance to Center City
+
+Distance to nearest university
+
+Distance to nearest park
+
+Points of interest nearby (restaurants, offices, bars)
+
+Station capacity
+
+Bike lane connectivity
+
+Trip history features:
+
+Rolling 7-day average demand
+
+Same hour last week
+
+Station "type" clustering (residential, commercial, tourist)
+
+Implementation:
+
+Add your features to the best model
+
+Compare MAE before and after
+
+Explain why you chose these features
+
+Did they improve predictions? Where?
+
+Try a poisson model for count data
+
+Does this improve model fit?
