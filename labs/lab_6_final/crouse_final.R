@@ -1,0 +1,266 @@
+library(dplyr)
+library(tigris)
+library(tidycensus)
+library(sf)
+library(ggplot2)
+library(tidyverse)
+library(lubridate)
+
+
+inspections <- read.csv("C:/Users/lizmc/Desktop/Y2S2/ppa/crouse/labs/lab_6_final/data/BUILDING_CERTS.csv")
+philadelphia <- counties(state = "PA")
+phl_tracts <- tracts(state = "PA", county = "Philadelphia")
+
+
+{r census data}
+#| message: false
+#| warning: false
+
+phl_census <- get_acs(
+  geography = "tract",
+  variables = c(
+    "B19013_001",  # Median household income
+    "B25002_002",  # Occupied housing units
+    "B25002_003",  # Vacant housing units
+    "B25002_001",  # Total housing units (for vacancy rate)
+    "B25003_001",  # Total occupied housing units
+    "B25003_002",  # Owner occupied
+    "B25003_003",  # Renter occupied
+    "B01003_001",  # Total population
+    "B25071_001"   # Median gross rent as % of household income (rent burden)
+  ),
+  state = "PA",
+  county = "Philadelphia",
+  year = 2022,
+  geometry = TRUE,
+  output = "wide"
+) %>%
+  rename(
+    Med_Inc              = B19013_001E,
+    Occupied_Units       = B25002_002E,
+    Vacant_Units         = B25002_003E,
+    Total_Units          = B25002_001E,
+    Total_Occupied       = B25003_001E,
+    Owner_Occupied       = B25003_002E,
+    Renter_Occupied      = B25003_003E,
+    Total_Pop            = B01003_001E,
+    Rent_Burden          = B25071_001E
+  ) %>%
+  mutate(
+    Vacancy_Rate         = Vacant_Units / Total_Units,
+    Pct_Renter_Occupied  = Renter_Occupied / Total_Occupied,
+    Pct_Owner_Occupied   = Owner_Occupied / Total_Occupied
+  ) %>%
+  select(
+    GEOID, NAME, geometry,
+    Med_Inc, Total_Pop,
+    Vacancy_Rate, Vacant_Units, Total_Units,
+    Pct_Renter_Occupied, Pct_Owner_Occupied,
+    Rent_Burden
+  ) %>%
+  st_transform(crs = 4326)
+
+cat("Total inspections:", nrow(inspections), "\n")
+cat("Date range:", min(inspections$inspectiondate, na.rm = TRUE), 
+    "to", max(inspections$inspectiondate, na.rm = TRUE), "\n")
+cat("Unique addresses:", length(unique(inspections$address)), "\n")
+cat("Missing inspection results:", sum(is.na(inspections$inspectionresult)), "\n")
+
+inspections <- inspections %>%
+  mutate(
+    inspectiondate = as.Date(inspectiondate),
+    year = year(inspectiondate),
+    month = month(inspectiondate, label = TRUE),
+    quarter = quarter(inspectiondate)
+  )
+
+# Look at raw values before any cleaning - important to document
+cat("Unique inspection results:\n")
+print(table(inspections$inspectionresult, useNA = "always"))
+
+cat("\nUnique certification types:\n")
+print(table(inspections$buildingcerttype, useNA = "always"))
+
+cat("\nUnique unit types:\n")
+print(table(inspections$unit_type, useNA = "always"))
+
+plotTheme <- theme_minimal() +
+  theme(
+    plot.title    = element_text(size = 14, face = "bold"),
+    plot.subtitle = element_text(size = 10),
+    plot.caption  = element_text(size = 8),
+    axis.text.x   = element_text(size = 10, angle = 45, hjust = 1),
+    axis.text.y   = element_text(size = 10),
+    axis.title    = element_text(size = 11, face = "bold"),
+    panel.grid.major = element_line(colour = "#D0D0D0", linewidth = 0.2),
+    panel.grid.minor = element_blank(),
+    axis.ticks    = element_blank(),
+    legend.position = "right"
+  )
+
+mapTheme <- theme_void() +
+  theme(
+    plot.title    = element_text(size = 14, face = "bold"),
+    plot.subtitle = element_text(size = 10),
+    plot.caption  = element_text(size = 8),
+    legend.position  = "right",
+    plot.margin      = margin(1, 1, 1, 1, "cm"),
+    legend.key.height = unit(1, "cm"),
+    legend.key.width  = unit(0.2, "cm")
+  )
+
+inspections <- inspections %>%
+  mutate(
+    inspectiondate = as.Date(inspectiondate),  # adjust format if needed
+    year  = year(inspectiondate),
+    month = month(inspectiondate, label = TRUE),
+    quarter = quarter(inspectiondate)
+  )
+
+inspections %>%
+  filter(!is.na(inspectionresult)) %>%
+  count(inspectionresult) %>%
+  mutate(pct = n / sum(n),
+         inspectionresult = reorder(inspectionresult, n)) %>%
+  ggplot(aes(x = inspectionresult, y = n, fill = inspectionresult)) +
+  geom_col(show.legend = FALSE) +
+  geom_text(aes(label = scales::percent(pct, accuracy = 0.1)), 
+            hjust = -0.1, size = 3.5) +
+  coord_flip() +
+  scale_fill_viridis_d(option = "plasma") +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.15)),
+                     labels = scales::comma) +
+  labs(
+    title = "Distribution of Building Inspection Results",
+    subtitle = "Philadelphia L&I Inspections",
+    x = NULL,
+    y = "Number of Inspections",
+    caption = "Source: OpenDataPhilly"
+  ) +
+  plotTheme
+
+inspections %>%
+  filter(!is.na(buildingcerttype)) %>%
+  count(buildingcerttype) %>%
+  mutate(pct = n / sum(n),
+         buildingcerttype = reorder(buildingcerttype, n)) %>%
+  ggplot(aes(x = buildingcerttype, y = n, fill = buildingcerttype)) +
+  geom_col(show.legend = FALSE) +
+  geom_text(aes(label = scales::percent(pct, accuracy = 0.1)),
+            hjust = -0.1, size = 3.5) +
+  coord_flip() +
+  scale_fill_viridis_d(option = "viridis") +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.15)),
+                     labels = scales::comma) +
+  labs(
+    title = "Inspections by Certification Type",
+    subtitle = "What kinds of inspections are being conducted?",
+    x = NULL,
+    y = "Number of Inspections",
+    caption = "Source: OpenDataPhilly"
+  ) +
+  plotTheme
+
+# --- Plot 3: Inspections over time by result ---
+inspections %>%
+  filter(!is.na(inspectionresult), !is.na(year)) %>%
+  count(year, inspectionresult) %>%
+  ggplot(aes(x = year, y = n, color = inspectionresult)) +
+  geom_line(linewidth = 1.2) +
+  geom_point(size = 2) +
+  scale_color_viridis_d(option = "plasma", name = "Result") +
+  scale_y_continuous(labels = scales::comma) +
+  labs(
+    title = "Inspection Results Over Time",
+    subtitle = "Are failure rates changing year over year?",
+    x = "Year",
+    y = "Number of Inspections",
+    caption = "Source: OpenDataPhilly"
+  ) +
+  plotTheme
+
+# --- Plot 4: Failure rate over time ---
+inspections %>%
+  filter(!is.na(inspectionresult), !is.na(year)) %>%
+  mutate(failed = inspectionresult == "FAILED") %>%  # update to match your actual fail label
+  group_by(year) %>%
+  summarize(
+    total = n(),
+    failures = sum(failed, na.rm = TRUE),
+    failure_rate = failures / total
+  ) %>%
+  ggplot(aes(x = year, y = failure_rate)) +
+  geom_line(color = "#08519c", linewidth = 1.2) +
+  geom_point(color = "#08519c", size = 3) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(
+    title = "Inspection Failure Rate Over Time",
+    subtitle = "Annual share of inspections resulting in failure",
+    x = "Year",
+    y = "Failure Rate",
+    caption = "Source: OpenDataPhilly"
+  ) +
+  plotTheme
+
+# --- Plot 5: Inspections by month (seasonality) ---
+inspections %>%
+  filter(!is.na(month)) %>%
+  count(month, inspectionresult) %>%
+  filter(!is.na(inspectionresult)) %>%
+  ggplot(aes(x = month, y = n, fill = inspectionresult)) +
+  geom_col(position = "fill") +
+  scale_fill_viridis_d(option = "plasma", name = "Result") +
+  scale_y_continuous(labels = scales::percent) +
+  labs(
+    title = "Inspection Results by Month",
+    subtitle = "Does seasonality affect pass/fail rates?",
+    x = "Month",
+    y = "Share of Inspections",
+    caption = "Source: OpenDataPhilly"
+  ) +
+  plotTheme
+
+# --- Plot 7: Result breakdown by cert type ---
+inspections %>%
+  filter(!is.na(inspectionresult), !is.na(buildingcerttype)) %>%
+  count(buildingcerttype, inspectionresult) %>%
+  group_by(buildingcerttype) %>%
+  mutate(pct = n / sum(n)) %>%
+  ggplot(aes(x = buildingcerttype, y = pct, fill = inspectionresult)) +
+  geom_col(position = "stack") +
+  coord_flip() +
+  scale_fill_viridis_d(option = "plasma", name = "Result") +
+  scale_y_continuous(labels = scales::percent) +
+  labs(
+    title = "Inspection Results by Certification Type",
+    subtitle = "Do certain inspection types fail more often?",
+    x = NULL,
+    y = "Share of Inspections",
+    caption = "Source: OpenDataPhilly"
+  ) +
+  plotTheme
+
+missing_summary <- inspections %>%
+  summarise(across(everything(), ~sum(is.na(.)))) %>%
+  pivot_longer(everything(), names_to = "variable", values_to = "n_missing") %>%
+  mutate(
+    pct_missing = n_missing / nrow(inspections),
+    variable = reorder(variable, pct_missing)
+  )
+
+ggplot(missing_summary, aes(x = variable, y = pct_missing, fill = pct_missing)) +
+  geom_col(show.legend = FALSE) +
+  geom_text(aes(label = scales::percent(pct_missing, accuracy = 0.1)),
+            hjust = -0.1, size = 3.5) +
+  coord_flip() +
+  scale_fill_viridis_c(option = "plasma", direction = -1) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.15)),
+                     labels = scales::percent) +
+  labs(
+    title = "Data Completeness by Variable",
+    subtitle = "Documenting missingness before modeling",
+    x = NULL,
+    y = "% Missing",
+    caption = "Source: OpenDataPhilly"
+  ) +
+  plotTheme

@@ -13,6 +13,7 @@ Calculate MAE for each model
 ```{r setup}
 #| message: false
 #| warning: false
+#| echo: FALSE
 
 library(tidyverse)
 library(lubridate)
@@ -32,6 +33,7 @@ options(scipen = 999)
 ```
 
 ```{r theme}
+##Create plot theme
 plotTheme <- theme_minimal() +
   theme(
     plot.title    = element_text(size = 14, face = "bold"),
@@ -61,26 +63,32 @@ palette5 <- c("#eff3ff", "#bdd7e7", "#6baed6", "#3182bd", "#08519c")
 ```
 
 ```{r set census key}
+#| echo: FALSE
 census_api_key(Sys.getenv("CENSUS_API_KEY"))
 ```
+
 ```{r data setup}
 indego_q3 <- read_csv(here("labs/lab_5/data/indego-trips-2025-q3.csv"))
 indego_q1 <- read_csv(here("labs/lab_5/data/indego-trips-2025-q1.csv"))
 
 ```
+
 ```{r data exploration}
+#Initial data exploration and analysis
 # How many trips?
 cat("Total trips in Q3 2025:", nrow(indego_q3), "\n")
-
+##465,464
 
 # Date range
 cat("Date range:", 
     min(mdy_hm(indego_q3$start_time)), "to", 
     max(mdy_hm(indego_q3$start_time)), "\n")
+##July 1 to Sept 30
 
 
 # How many unique stations?
 cat("Unique start stations:", length(unique(indego_q3$start_station)), "\n")
+##284 unique stations
 
 
 # Trip types
@@ -93,6 +101,7 @@ table(indego_q3$passholder_type)
 table(indego_q3$bike_type)
 ```
 ```{r create bins}
+#Creating hourlong bins for start time
 indego_q3 <- indego_q3 %>%
   mutate(
     # Parse datetime
@@ -149,7 +158,7 @@ head(indego_q1 %>% select(start_datetime, interval60, week, dotw, hour, weekend)
 #| message: false
 #| warning: false
 
-# Daily trip counts
+# Daily trip counts Q3
 daily_trips_q3 <- indego_q3 %>%
   group_by(date) %>%
   summarize(trips = n())
@@ -159,14 +168,14 @@ ggplot(daily_trips_q3, aes(x = date, y = trips)) +
   geom_smooth(se = FALSE, color = "red", linetype = "dashed") +
   labs(
     title = "Indego Daily Ridership - Q3 2025",
-    subtitle = "Winter demand patterns in Philadelphia",
+    subtitle = "Late summer demand patterns in Philadelphia",
     x = "Date",
     y = "Daily Trips",
     caption = "Source: Indego bike share"
   ) +
   plotTheme
 
-# Daily trip counts
+# Daily trip counts Q1
 daily_trips_q1 <- indego_q1 %>%
   group_by(date) %>%
   summarize(trips = n())
@@ -175,13 +184,15 @@ ggplot(daily_trips_q1, aes(x = date, y = trips)) +
   geom_line(color = "#3182bd", linewidth = 1) +
   geom_smooth(se = FALSE, color = "red", linetype = "dashed") +
   labs(
-    title = "Indego Daily Ridership - Q3 2025",
+    title = "Indego Daily Ridership - Q1 2025",
     subtitle = "Winter demand patterns in Philadelphia",
     x = "Date",
     y = "Daily Trips",
     caption = "Source: Indego bike share"
   ) +
   plotTheme
+
+#Q1 shows a steady increase over time likely do to warming weather conditions; Q3 has more variation but an overall upward trend. This could be due to the weather being too hot, school being out of session, etc. Overall, Q3 has a significantly greater volume of trips.
 ```
 
 ```{r time patterns}
@@ -220,6 +231,7 @@ ggplot(hourly_patterns_q1, aes(x = hour, y = avg_trips, color = day_type)) +
   ) +
   plotTheme
 
+#Both Q1 and Q3 show clear patterns of commutes on weekdays. Ridership is higher overall in Q3, but the trends mirror each other almost exactly.
 ```
 
 ```{r top stations}
@@ -252,7 +264,7 @@ kable(top_stations_q1,
 #| warning: false
 
 
-# Get Philadelphia census tracts
+# Get Philadelphia census data
 philly_census <- get_acs(
   geography = "tract",
   variables = c(
@@ -306,6 +318,7 @@ ggplot() +
     color = "red", size = 0.25, alpha = 0.6
   ) +
   mapTheme
+#Stations cluster around areas with higher median income, but those also tend to be in Center City, which has more bike lanes, greater population density, etc.
 ```
 
 ```{r join to station data}
@@ -318,8 +331,6 @@ stations_sf <- indego_q3 %>%
 # Spatial join to get census tract for each station
 stations_census <- st_join(stations_sf, philly_census, left = TRUE) %>%
   st_drop_geometry()
-
-# Look at the result - investigate whether all of the stations joined to census data -- according to the map above there are stations in non-residential tracts.
 
 stations_for_map <- indego_q3 %>%
   distinct(start_station, start_lat, start_lon) %>%
@@ -366,14 +377,11 @@ ggplot() +
     name = "Median\nIncome",
     labels = scales::dollar,
     na.value = "grey90"
-  ) +
-  # Stations with census data (small grey dots)
-  geom_point(
+  ) +  geom_point(
     data = stations_for_map %>% filter(has_census),
     aes(x = start_lon, y = start_lat),
     color = "grey30", size = 1, alpha = 0.6
   ) +
-  # Stations WITHOUT census data (red X marks the spot)
   geom_point(
     data = stations_for_map %>% filter(!has_census),
     aes(x = start_lon, y = start_lat),
@@ -385,6 +393,8 @@ ggplot() +
     caption = "Red X marks indicate stations that didn't join to census tracts"
   ) +
   mapTheme
+#Stations along the river and peripheral, non-residential parts of the city must be accounted for when doing demographic research.
+
 ```
 
 ```{r valid stations}
@@ -402,11 +412,13 @@ indego_census <- indego_q3 %>%
              Percent_White, Total_Pop),
     by = "start_station"
   )
+
+#Here we identify and filter out those stations that do not match a demographic census area.
 ```
 
 ```{r weather}
 # Get weather from Philadelphia International Airport (KPHL)
-# This covers Q3 2025: July 1 - September 3o
+# This covers Q3 2025: July 1 - September 30
 weather_data_q3 <- riem_measures(
   station = "PHL",  # Philadelphia International Airport
   date_start = "2025-07-01",
@@ -484,7 +496,7 @@ ggplot(weather_complete_q1, aes(x = interval60, y = Temperature)) +
     y = "Temperature (°F)"
   ) +
   plotTheme
-
+#Clear temperature trend upward in Q1 with most days averaging below 60. Q3 patterns have less of a trend, with the line fit mostly staying between 70 and 80 on average.
 ```
 
 ```{r aggregate data}
@@ -597,6 +609,8 @@ glimpse(study_panel_q3)
 # Verify we have complete panel
 cat("Complete panel rows:", format(nrow(study_panel_q3), big.mark = ","), "\n")
 cat("Complete panel rows:", format(nrow(study_panel_q1), big.mark = ","), "\n")
+
+#The trends on both Q1 and Q3 look similar, but Q3 operates on a much higher scale.
 
 ```
 
@@ -715,6 +729,9 @@ ggplot(example_station, aes(x = interval60)) +
   plotTheme
 ```
 
+
+
+
 ```{r temporal test train}
 # Split by week
 # Q3 has weeks  26-39 (Jul-Sep)
@@ -787,18 +804,154 @@ train_q1 <- train_q1 %>%
 train_q3 <- train_q3 %>% droplevels()
 train_q1 <- train_q1 %>% droplevels()
 
-cat("Training observations:", format(nrow(train_q3), big.mark = ","), "\n")
-cat("Testing observations:", format(nrow(test_q3), big.mark = ","), "\n")
-cat("Training date range:", min(train_q3$date), "to", max(train_q3$date), "\n")
-cat("Testing date range:", min(test_q3$date), "to", max(test_q3$date), "\n")
+cat("Training observations Q3:", format(nrow(train_q3), big.mark = ","), "\n")
+cat("Testing observations Q3:", format(nrow(test_q3), big.mark = ","), "\n")
+cat("Training date range Q3:", min(train_q3$date), "to", max(train_q3$date), "\n")
+cat("Testing date range Q3:", min(test_q3$date), "to", max(test_q3$date), "\n")
 
-cat("Training observations:", format(nrow(train_q1), big.mark = ","), "\n")
-cat("Testing observations:", format(nrow(test_q1), big.mark = ","), "\n")
-cat("Training date range:", min(train_q1$date), "to", max(train_q1$date), "\n")
-cat("Testing date range:", min(test_q1$date), "to", max(test_q1$date), "\n")
+cat("Training observations Q1:", format(nrow(train_q1), big.mark = ","), "\n")
+cat("Testing observations Q1:", format(nrow(test_q1), big.mark = ","), "\n")
+cat("Training date range Q1:", min(train_q1$date), "to", max(train_q1$date), "\n")
+cat("Testing date range Q1:", min(test_q1$date), "to", max(test_q1$date), "\n")
 
 
 ```
+```{r station volume}
+# Q3
+station_volume_q3 <- train_q3 %>%
+  mutate(start_station = as.character(start_station)) %>%
+  group_by(start_station) %>%
+  summarize(avg_trips = mean(Trip_Count)) %>%
+  mutate(volume_tier = case_when(
+    avg_trips >= quantile(avg_trips, 0.67) ~ "High",
+    avg_trips >= quantile(avg_trips, 0.33) ~ "Medium",
+    TRUE ~ "Low"
+  )) %>%
+  select(start_station, volume_tier)
+
+train_q3 <- train_q3 %>%
+  mutate(start_station = as.character(start_station)) %>%
+  left_join(station_volume_q3, by = "start_station") %>%
+  mutate(start_station = factor(start_station))
+
+test_q3 <- test_q3 %>%
+  mutate(start_station = as.character(start_station)) %>%
+  left_join(station_volume_q3, by = "start_station") %>%
+  mutate(
+    volume_tier = replace_na(volume_tier, "Low"),
+    start_station = factor(start_station, levels = levels(train_q3$start_station))
+  )
+
+# Q1
+station_volume_q1 <- train_q1 %>%
+  mutate(start_station = as.character(start_station)) %>%
+  group_by(start_station) %>%
+  summarize(avg_trips = mean(Trip_Count)) %>%
+  mutate(volume_tier = case_when(
+    avg_trips >= quantile(avg_trips, 0.67) ~ "High",
+    avg_trips >= quantile(avg_trips, 0.33) ~ "Medium",
+    TRUE ~ "Low"
+  )) %>%
+  select(start_station, volume_tier)
+
+train_q1 <- train_q1 %>%
+  mutate(start_station = as.character(start_station)) %>%
+  left_join(station_volume_q1, by = "start_station") %>%
+  mutate(start_station = factor(start_station))
+
+test_q1 <- test_q1 %>%
+  mutate(start_station = as.character(start_station)) %>%
+  left_join(station_volume_q1, by = "start_station") %>%
+  mutate(
+    volume_tier = replace_na(volume_tier, "Low"),
+    start_station = factor(start_station, levels = levels(train_q1$start_station))
+  )
+
+# Factor levels
+train_q3 <- train_q3 %>% mutate(volume_tier = factor(volume_tier, levels = c("Low", "Medium", "High")))
+test_q3  <- test_q3  %>% mutate(volume_tier = factor(volume_tier, levels = c("Low", "Medium", "High")))
+train_q1 <- train_q1 %>% mutate(volume_tier = factor(volume_tier, levels = c("Low", "Medium", "High")))
+test_q1  <- test_q1  %>% mutate(volume_tier = factor(volume_tier, levels = c("Low", "Medium", "High")))
+
+```
+
+```{r distance to city hall}
+# Center City Philadelphia coordinates (City Hall)
+center_city_lat <- 39.9526
+center_city_lon <- -75.1652
+
+# Haversine function
+haversine_miles <- function(lat1, lon1, lat2, lon2) {
+  R <- 3958.8
+  dlat <- (lat2 - lat1) * pi / 180
+  dlon <- (lon2 - lon1) * pi / 180
+  a <- sin(dlat/2)^2 + cos(lat1 * pi/180) * cos(lat2 * pi/180) * sin(dlon/2)^2
+  2 * R * asin(sqrt(a))
+}
+
+# Calculate distances from training data only
+station_distances_q3 <- train_q3 %>%
+  mutate(start_station = as.character(start_station)) %>%
+  distinct(start_station, start_lat, start_lon) %>%
+  filter(!is.na(start_lat)) %>%
+  mutate(dist_to_center = haversine_miles(start_lat, start_lon,
+                                          center_city_lat, center_city_lon))
+
+station_distances_q1 <- train_q1 %>%
+  mutate(start_station = as.character(start_station)) %>%
+  distinct(start_station, start_lat, start_lon) %>%
+  filter(!is.na(start_lat)) %>%
+  mutate(dist_to_center = haversine_miles(start_lat, start_lon,
+                                          center_city_lat, center_city_lon))
+
+# Join to train (remove first in case chunk is re-run)
+train_q3 <- train_q3 %>%
+  mutate(start_station = as.character(start_station)) %>%
+  select(-any_of("dist_to_center")) %>%
+  left_join(station_distances_q3 %>% select(start_station, dist_to_center),
+            by = "start_station") %>%
+  mutate(start_station = factor(start_station))
+
+train_q1 <- train_q1 %>%
+  mutate(start_station = as.character(start_station)) %>%
+  select(-any_of("dist_to_center")) %>%
+  left_join(station_distances_q1 %>% select(start_station, dist_to_center),
+            by = "start_station") %>%
+  mutate(start_station = factor(start_station))
+
+# Join to test
+test_q3 <- test_q3 %>%
+  mutate(start_station = as.character(start_station)) %>%
+  select(-any_of("dist_to_center")) %>%
+  left_join(station_distances_q3 %>% select(start_station, dist_to_center),
+            by = "start_station") %>%
+  mutate(
+    dist_to_center = replace_na(dist_to_center,
+                                median(station_distances_q3$dist_to_center)),
+    start_station = factor(start_station, levels = levels(train_q3$start_station))
+  )
+
+test_q1 <- test_q1 %>%
+  mutate(start_station = as.character(start_station)) %>%
+  select(-any_of("dist_to_center")) %>%
+  left_join(station_distances_q1 %>% select(start_station, dist_to_center),
+            by = "start_station") %>%
+  mutate(
+    dist_to_center = replace_na(dist_to_center,
+                                median(station_distances_q1$dist_to_center)),
+    start_station = factor(start_station, levels = levels(train_q1$start_station))
+  )
+
+# Verify
+cat("Q3 train dist_to_center - min:", round(min(train_q3$dist_to_center, na.rm=TRUE), 2), 
+    "max:", round(max(train_q3$dist_to_center, na.rm=TRUE), 2), "miles\n")
+cat("Q1 train dist_to_center - min:", round(min(train_q1$dist_to_center, na.rm=TRUE), 2),
+    "max:", round(max(train_q1$dist_to_center, na.rm=TRUE), 2), "miles\n")
+cat("Q3 test NAs in dist_to_center:", sum(is.na(test_q3$dist_to_center)), "\n")
+cat("Q1 test NAs in dist_to_center:", sum(is.na(test_q1$dist_to_center)), "\n")
+
+```
+
 
 ```{r model 1}
 
@@ -881,8 +1034,8 @@ model4_q3 <- lm(
     start_station,
   data = train_q3
 )
-cat("Model 4 R-squared:", summary(model4_q3)$r.squared, "\n")
-cat("Model 4 Adj R-squared:", summary(model4_q3)$adj.r.squared, "\n")
+cat("Model 4 R-squared Q3:", summary(model4_q3)$r.squared, "\n")
+cat("Model 4 Adj R-squared Q3:", summary(model4_q3)$adj.r.squared, "\n")
 
 model4_q1 <- lm(
   Trip_Count ~ as.factor(hour) + dotw_simple + Temperature + Precipitation +
@@ -891,8 +1044,8 @@ model4_q1 <- lm(
     start_station,
   data = train_q1
 )
-cat("Model 4 R-squared:", summary(model4_q1)$r.squared, "\n")
-cat("Model 4 Adj R-squared:", summary(model4_q1)$adj.r.squared, "\n")
+cat("Model 4 R-squared Q1:", summary(model4_q1)$r.squared, "\n")
+cat("Model 4 Adj R-squared Q1:", summary(model4_q1)$adj.r.squared, "\n")
 
 
 
@@ -908,8 +1061,8 @@ model5_q3 <- lm(
   data = train_q3
 )
 
-cat("Model 5 R-squared:", summary(model5_q3)$r.squared, "\n")
-cat("Model 5 Adj R-squared:", summary(model5_q3)$adj.r.squared, "\n")
+cat("Model 5 R-squared Q3:", summary(model5_q3)$r.squared, "\n")
+cat("Model 5 Adj R-squared Q3:", summary(model5_q3)$adj.r.squared, "\n")
 
 model5_q1 <- lm(
   Trip_Count ~ as.factor(hour) + dotw_simple + Temperature + Precipitation +
@@ -920,8 +1073,8 @@ model5_q1 <- lm(
   data = train_q1
 )
 
-cat("Model 5 R-squared:", summary(model5_q1)$r.squared, "\n")
-cat("Model 5 Adj R-squared:", summary(model5_q1)$adj.r.squared, "\n")
+cat("Model 5 R-squared Q1:", summary(model5_q1)$r.squared, "\n")
+cat("Model 5 Adj R-squared Q1:", summary(model5_q1)$adj.r.squared, "\n")
 
 ```
 
@@ -1022,6 +1175,8 @@ kable(mae_results_q1,
       col.names = c("Model", "MAE (trips)")) %>%
   kable_styling(bootstrap_options = c("striped", "hover"))
 
+#MAE is higher for Q3 than Q1. Trends such as weather/temperature and weekend/weekday divide are trend more clearly in Q1, whereas more outliers exist in the Q3 dataset. This makes the models predict significantly better in Q1 than Q3. For Q1, the model perfoms best at stage 4 after adding fixed effects. For Q3, stage 4 and 5 half equal MAE.
+
 ```
 
 ```{r visualize comparisons}
@@ -1110,6 +1265,7 @@ ggplot(test_q1, aes(x = Trip_Count, y = pred2)) +
   ) +
   plotTheme
 
+#There is less variation in the errors in Q1. The Q1 model does well at overnight and decently well with mid-day frames. Q3 shows more variation in error overall, especially struggling with the PM rush period.
 ```
 
 ```{r spatial errors}
@@ -1291,6 +1447,8 @@ p2_q1 <- ggplot() +
 # Combine
 (p1_q3 | p2_q3)
 (p1_q1 | p2_q1)
+
+#Stations with higher volumes have higher MAE, and Q3 has higher MAE overall than Q1. This shows us the model predicts better on stations further from Center City where there is a lower volume of trips. 
 ```
 
 ```{r temporal errors}
@@ -1336,6 +1494,8 @@ ggplot(temporal_errors_q1, aes(x = time_of_day, y = MAE, fill = day_type)) +
   ) +
   plotTheme +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+#Following with the trends observed so far, both models struggle more with high volume times, especially the PM rush. Both models excel during the overnight time period.
 ```
 
 ```{r demographic errors}
@@ -1408,62 +1568,153 @@ p3_q1 <- ggplot(station_errors_demo_q1, aes(x = Percent_White, y = MAE)) +
 
 (p1_q1 | p2_q1) / (p3_q1 | plot_spacer())
 
+#Q1 and Q3models have errors distributed fairly randomly around their trend lines, which show clear trends that differ based on the demographic measure. While the scales of error and volume of trips varies widely, the slopes of the fitted error lines are nearly identical. The models have more errors in higher income areas and areas with a higher percentage of white people. Both models see a decrease in error as the % of transit ridership increases.
+
 ```
 
-Potential features to consider:
+```{r new models}
+# Model 6: Best previous model (5) + new features
+# Adding dist_to_center and volume_tier to model 5's formula
+model6_q3 <- lm(
+  Trip_Count ~ as.factor(hour) + dotw_simple + Temperature + Precipitation +
+    lag1Hour + lag3Hours + lag1day + rush_hour + as.factor(month) +
+    Med_Inc + Percent_Taking_Transit + Percent_White +
+    start_station +
+    rush_hour * weekend +
+    dist_to_center + volume_tier,
+  data = train_q3
+)
+cat("Model 6 Q3 R-squared:", summary(model6_q3)$r.squared, "\n")
+cat("Model 6 Q3 Adj R-squared:", summary(model6_q3)$adj.r.squared, "\n")
 
-Temporal features:
 
-Holiday indicators (Memorial Day, July 4th, Labor Day)
+```
+```{r poisson model}
+# Poisson is appropriate for count data like trip counts
+# It assumes variance increases with the mean (unlike OLS which assumes constant variance)
 
-School calendar (Penn, Drexel, Temple in session?)
+model_poisson_q3 <- glm(
+  Trip_Count ~ as.factor(hour) + dotw_simple + Temperature + Precipitation +
+    lag1Hour + lag3Hours + lag1day + rush_hour + as.factor(month) +
+    Med_Inc + Percent_Taking_Transit + Percent_White +
+    start_station +
+    rush_hour * weekend +
+    dist_to_center + volume_tier,
+  data = train_q3,
+  family = poisson(link = "log")
+)
+cat("Poisson Q3 AIC:", AIC(model_poisson_q3), "\n")
+cat("OLS Model 6 Q3 AIC:", AIC(model6_q3), "\n")
+```
 
-Special events (concerts, sports games, conventions)
+```{r mae on new models}
+# Get predictions on test set
 
-Day of month (payday effects?)
+# Create day of week factor with treatment (dummy) coding
+test_q3 <- test_q3 %>%
+  mutate(dotw_simple = factor(dotw, levels = c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")))
 
-Weather features:
+# Set contrasts to treatment coding (dummy variables)
+contrasts(test_q3$dotw_simple) <- contr.treatment(7)
 
-Feels-like temperature (wind chill/heat index)
+test_q3$start_station <- factor(
+  test_q3$start_station,
+  levels = model4_q3$xlevels$start_station
+)
 
-"Perfect biking weather" indicator (60-75°F, no rain)
+test_q3 <- test_q3 %>% droplevels()
 
-Precipitation forecast (not just current)
+test_q3 <- test_q3 %>%
+  mutate(
+    pred1 = predict(model1_q3, newdata = test_q3),
+    pred2 = predict(model2_q3, newdata = test_q3),
+    pred3 = predict(model3_q3, newdata = test_q3),
+    pred4 = predict(model4_q3, newdata = test_q3),
+    pred5 = predict(model5_q3, newdata = test_q3),
+    pred6 = predict(model6_q3, newdata = test_q3),
+    pred_poisson = predict(model_poisson_q3, newdata = test_q3, type = "response")  )
 
-Weekend + nice weather interaction
+# Calculate MAE for each model
+mae_results_newmodels <- data.frame(
+  Model = c(
+    "1. Time + Weather",
+    "2. + Temporal Lags",
+    "3. + Demographics",
+    "4. + Station FE",
+    "5. + Rush Hour Interaction",
+    "6. + Station Volume + Distance to Center City",
+    "7. Poisson fit"
+  ),
+  MAE = c(
+    mean(abs(test_q3$Trip_Count - test_q3$pred1), na.rm = TRUE),
+    mean(abs(test_q3$Trip_Count - test_q3$pred2), na.rm = TRUE),
+    mean(abs(test_q3$Trip_Count - test_q3$pred3), na.rm = TRUE),
+    mean(abs(test_q3$Trip_Count - test_q3$pred4), na.rm = TRUE),
+    mean(abs(test_q3$Trip_Count - test_q3$pred5), na.rm = TRUE),
+    mean(abs(test_q3$Trip_Count - test_q3$pred6), na.rm = TRUE),
+    mean(abs(test_q3$Trip_Count - test_q3$pred_poisson), na.rm = TRUE)
+  )
+)
 
-Spatial features:
+kable(mae_results_newmodels,
+      digits = 2,
+      caption = "Mean Absolute Error by Model, Q3 (Test Set)",
+      col.names = c("Model", "MAE (trips)")) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
 
-Distance to Center City
+#Station volume and distance to center city had no effect on the MAE, which I was surprised by. By creating volume tiers, I thought that the model would improve because the volume of trips seemed to have a large effect on the errors, as seen in the maps showing trip volume vs. error. Again, because Center City seemed to be a hotspot of errors, I thought that distance to City Hall might improve the model. In the future, perhaps a different engineering method of these two features would result in a better model. However, the Poisson fit improved the model greatly. This makes sense; the trip volumes are not continuous, so using a regression model that allows for a longer tail (like Poisson) improved the model.
+```
+```{r error by time of day}
+# MAE by time of day and day type
+# Calculate errors for new models
+test_q3 <- test_q3 %>%
+  mutate(
+    abs_error_m6      = abs(Trip_Count - pred6),
+    abs_error_poisson = abs(Trip_Count - pred_poisson)
+  )
 
-Distance to nearest university
+# Pivot longer so both models can be faceted/compared
+temporal_errors_newmodels <- test_q3 %>%
+  select(time_of_day, weekend, abs_error_m6, abs_error_poisson) %>%
+  pivot_longer(
+    cols = c(abs_error_m6, abs_error_poisson),
+    names_to = "model",
+    values_to = "abs_error"
+  ) %>%
+  mutate(
+    model    = recode(model,
+                      "abs_error_m6"      = "Model 6: + Distance + Volume Tier",
+                      "abs_error_poisson" = "Poisson"),
+    day_type = ifelse(weekend == 1, "Weekend", "Weekday")
+  ) %>%
+  group_by(time_of_day, weekend, day_type, model) %>%
+  summarize(MAE = mean(abs_error, na.rm = TRUE), .groups = "drop")
 
-Distance to nearest park
+ggplot(temporal_errors_newmodels, aes(x = time_of_day, y = MAE, fill = day_type)) +
+  geom_col(position = "dodge") +
+  facet_wrap(~ model) +
+  scale_fill_manual(values = c("Weekday" = "#08519c", "Weekend" = "#6baed6")) +
+  labs(
+    title = "Prediction Errors by Time Period - New Models",
+    subtitle = "Model 6 vs. Poisson",
+    x = "Time of Day",
+    y = "Mean Absolute Error (trips)",
+    fill = "Day Type"
+  ) +
+  plotTheme +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+#The model 6 MAE by hour is similar to that of the first five models, but the Poisson model reduces the overall MAE. It still follows the same temporal error patterns, showing that while the Poisson model improves the model overall, it does not account for some of the temporal error.
+```
+```{r reflection}
+#Operational Limitations
 
-Points of interest nearby (restaurants, offices, bars)
+#The best OLS models (4 and 5) achieve MAE around 0.74 trips per station-hour in Q3, with the Poisson model improving on this further (MAE = 0.69). For low-volume stations averaging 0.3-0.5 trips per hour in Q1, an MAE of 0.8 represents substantial  error; this shows the the model is often off by more than the average demand itself. For high-volume Center City stations, the same absolute error is more tolerable. The model really begins to struggle PM rush on weekdays, which is likely when rebalancing demand is highest. Incorrect predictions could leave commuters, especially at lower-volume stations without a bike. I would recommend deploying this system only for high-volume stations where the model performs more reliably until more features can improve the model predictions.
 
-Station capacity
+#Equity Considerations
+#The demographic error analysis reveals a consistent pattern across both Q1 and Q3: prediction errors are higher in higher-income, majority-white neighborhoods, and lower in higher-transit-usage areas. At first glance this seems to favor lower-income neighborhoods, but higher errors in wealthier Center City areas likely reflect those stations' higher volumes, not better service for lower-income communities. We can see this as the high median income areas that also have stations are in Center City, where population density and trip volume are higher. One possible negative implication is that if Indego uses this model to allocate rebalancing , lower-income and minority neighborhoods that the model predicts more "accurately" (because they have lower and more stable demand) may receive less attention, entrenching existing patterns of underservice. A system that performs well where demand is already high and poorly where demand risks creating a circular logic and perpetuating service flaws for minority communities or lower income areas. I  recommend reevaluating decisions by neighborhood demographics, setting a floor on service level for all stations, and not using prediction accuracy as a sole proxy for evaluating service levels.
 
-Bike lane connectivity
+#Model Limitations
 
-Trip history features:
+#The most significant pattern the model is missing is event-driven demand — outlier events (such as the spike in Feb 2025 on the day the Eagles won the Super Bowl) that temporal lag  can anticipate because the model is not trained to factor in such irregularities. This could be one reason that Q1 performs so much better than Q3 overall; summer brings more irregular events, tourism, and changing school schedules. Further, using the temporal train/test split (training on July through early September and testing on late September) is important to not create a circular model through a different validation (such as k-fold), but if demand changes heavily based on holidays and summer patterns, this means the model is trained on summer demand patterns, which may differ from fall in ways the month fixed effect only shows a part of. With more time, the most valuable additions would be special event calendars and a cross-validation strategy that tests across multiple time windows while still paying attention to creating a logically sound temporal validation.
+```
 
-Rolling 7-day average demand
-
-Same hour last week
-
-Station "type" clustering (residential, commercial, tourist)
-
-Implementation:
-
-Add your features to the best model
-
-Compare MAE before and after
-
-Explain why you chose these features
-
-Did they improve predictions? Where?
-
-Try a poisson model for count data
-
-Does this improve model fit?
