@@ -1,14 +1,22 @@
-
-#Part 1
-Adapt this code to work with your quarter:
-
-Update date ranges for weather data
-
-Check for any data structure changes
-
-Create the same 5 models
-
-Calculate MAE for each model
+---
+title: "Bikeshare_SpaceTime_Prediction"
+subtitle: "CPLN 5080 - Spring 2026"
+author: "Liz Crouse"
+date: today
+format:
+  html:
+    code-fold: show
+    code-tools: true
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    theme: cosmo
+    embed-resources: true
+editor: visual
+execute:
+  warning: false
+  message: false
+---
 
 ```{r setup}
 #| message: false
