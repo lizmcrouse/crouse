@@ -1,3 +1,5 @@
+
+```{r setup}
 library(dplyr)
 library(tigris)
 library(tidycensus)
@@ -5,11 +7,14 @@ library(sf)
 library(ggplot2)
 library(tidyverse)
 library(lubridate)
+library(tidygeocoder)
+```
 
-
+```{r initial data}
 inspections <- read.csv("C:/Users/lizmc/Desktop/Y2S2/ppa/crouse/labs/lab_6_final/data/BUILDING_CERTS.csv")
 philadelphia <- counties(state = "PA")
 phl_tracts <- tracts(state = "PA", county = "Philadelphia")
+blocks <- blocks(state = "PA", county = "Philadelphia")
 
 
 #| message: false
@@ -263,3 +268,134 @@ ggplot(missing_summary, aes(x = variable, y = pct_missing, fill = pct_missing)) 
     caption = "Source: OpenDataPhilly"
   ) +
   plotTheme
+```
+
+```{r economic features}
+opa <- st_read("C:/Users/lizmc/Desktop/Y2S2/ppa/crouse/labs/lab_6_final/data/opa_properties_public.geojson")
+opa <- opa %>% filter(sale_price > 10000) %>%
+    mutate(
+    year_built = as.numeric(year_built),
+    age = 2026 - year_built
+  )
+opa_singlefam <- opa %>% 
+    filter(category_code_description %in% c("SINGLE FAMILY"))
+opa_multifam <- opa %>%
+  filter(category_code_description %in% c("MULTI FAMILY"))
+opa_commercial <- opa %>%
+  filter(category_code_description %in% c("COMMERCIAL", "MIXED USE"))
+
+blocks <- st_transform(blocks, st_crs(opa))
+opa_blocks <- st_join(opa, blocks %>% select(GEOID20, geometry), join = st_within)
+opa_sf_blocks <- st_join(opa_singlefam, blocks %>% select(GEOID20, geometry), join = st_within)
+opa_mf_blocks <- st_join(opa_multifam, blocks %>% select(GEOID20, geometry), join = st_within)
+opa_commercial_blocks <- st_join(opa_commercial, blocks %>% select(GEOID20, geometry), join = st_within)
+
+opa_sf_block_summary <- opa_sf_blocks %>%
+  st_drop_geometry() %>%
+  group_by(GEOID20) %>%
+  summarize(
+    n_properties     = n(),
+    avg_market_value = mean(market_value, na.rm = TRUE),
+    avg_sale_price    = mean(sale_price, na.rm = TRUE),
+    avg_number_bedrooms = mean(number_of_bedrooms, na.rm = TRUE),
+    avg_total_area = mean(total_area, na.rm = TRUE),
+    avg_livable_area = mean(total_livable_area, na.rm = TRUE),
+    avg_age = mean(age, na.rm = TRUE))
+opa_mf_block_summary <- opa_mf_blocks %>%
+  st_drop_geometry() %>%
+  group_by(GEOID20) %>%
+  summarize(
+    n_properties     = n(),
+    avg_market_value = mean(market_value, na.rm = TRUE),
+    avg_sale_price    = mean(sale_price, na.rm = TRUE),
+    avg_number_bedrooms = mean(number_of_bedrooms, na.rm = TRUE),
+    avg_total_area = mean(total_area, na.rm = TRUE),
+    avg_livable_area = mean(total_livable_area, na.rm = TRUE),
+    avg_age = mean(age, na.rm = TRUE))
+opa_commercial_block_summary <- opa_commercial_blocks %>%
+  st_drop_geometry() %>%
+  group_by(GEOID20) %>%
+  summarize(
+    n_properties     = n(),
+    avg_market_value = mean(market_value, na.rm = TRUE),
+    avg_sale_price    = mean(sale_price, na.rm = TRUE),
+    avg_number_bedrooms = mean(number_of_bedrooms, na.rm = TRUE),
+    avg_total_area = mean(total_area, na.rm = TRUE),
+    avg_livable_area = mean(total_livable_area, na.rm = TRUE),
+    avg_age = mean(age, na.rm = TRUE))
+
+
+blocks_sf <- blocks %>%
+  left_join(opa_sf_block_summary, by = "GEOID20")
+
+blocks_mf <- blocks %>%
+  left_join(opa_mf_block_summary, by = "GEOID20")
+
+blocks_commercial <- blocks %>%
+  left_join(opa_commercial_block_summary, by = "GEOID20")
+```
+
+```{r exploratory visualization}
+
+cap_sf <- quantile(blocks_sf$avg_sale_price, 0.95, na.rm = TRUE)
+
+blocks_sf <- blocks_sf %>%
+  mutate(avg_sale_price_capped = pmin(avg_sale_price, cap_sf))
+
+ggplot() +
+  geom_sf(data = blocks_sf, aes(fill = avg_sale_price_capped), color = NA) +
+  scale_fill_viridis_c(
+    option = "plasma",
+    na.value = "grey80",
+    labels = scales::dollar_format(scale = 0.001, suffix = "K"),
+    name = "Avg Sale Price\n(capped at 95th %ile)"
+  ) +
+  labs(
+    title = "Average Sale Price by Census Block",
+    subtitle = "Single Family Properties, Philadelphia PA",
+    caption = "Source: OPA Philadelphia"
+  ) +
+  mapTheme
+
+cap_mf <- quantile(blocks_mf$avg_sale_price, 0.95, na.rm = TRUE)
+
+blocks_mf <- blocks_mf %>%
+  mutate(avg_sale_price_capped = pmin(avg_sale_price, cap_mf))
+
+ggplot() +
+  geom_sf(data = blocks_mf, aes(fill = avg_sale_price_capped), color = NA) +
+  scale_fill_viridis_c(
+    option = "plasma",
+    na.value = "grey80",
+    labels = scales::dollar_format(scale = 0.001, suffix = "K"),
+    name = "Avg Sale Price\n(capped at 95th %ile)"
+  ) +
+  labs(
+    title = "Average Sale Price by Census Block",
+    subtitle = "Multifamily Properties, Philadelphia PA",
+    caption = "Source: OPA Philadelphia"
+  ) +
+  mapTheme
+
+cap_comm <- quantile(blocks_commercial$avg_sale_price, 0.95, na.rm = TRUE)
+
+blocks_commercial <- blocks_sf %>%
+  mutate(avg_sale_price_capped = pmin(avg_sale_price, cap_comm))
+
+ggplot() +
+  geom_sf(data = blocks_commercial, aes(fill = avg_sale_price_capped), color = NA) +
+  scale_fill_viridis_c(
+    option = "plasma",
+    na.value = "grey80",
+    labels = scales::dollar_format(scale = 0.001, suffix = "K"),
+    name = "Avg Sale Price\n(capped at 95th %ile)"
+  ) +
+  labs(
+    title = "Average Sale Price by Census Block",
+    subtitle = "Commercial Properties, Philadelphia PA",
+    caption = "Source: OPA Philadelphia"
+  ) +
+  mapTheme
+
+
+```
